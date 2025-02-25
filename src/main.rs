@@ -10,8 +10,8 @@ use ui::NoteUI;
 
 fn main() {
     loop {
-        println!("1. Create Note | 2. View Notes | 3. Edit Note | 4. Delete Note | 5. Exit");
-        let choice = get_user_input("Choose an option: ");
+        println!("| 1. Create Note\n| 2. View Notes\n| 3. Edit Note\n| 4. Delete Note\n| q. Exit");
+        let choice = get_user_input("| Choose an option: ");
 
         match choice.trim() {
             "1" => {
