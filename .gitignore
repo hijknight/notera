@@ -1,5 +1,8 @@
 /target
 /.idea
 Cargo.lock
-notes.json
+
 .DS_Store
+# env files (created automatically)
+notes.json
+

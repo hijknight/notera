@@ -15,3 +15,5 @@ crossterm = "0.28.1"
 serde = {  version = "1.0.218", features = ["derive"] }
 serde_json = "1.0.139"
 tui = "0.19.0"
+
+# TODO IMPORTANT: must change editor to vim before publish
