@@ -1,6 +1,6 @@
 [package]
 name = "note-taker-rust"
-version = "0.1.0"
+version = "0.0.1"
 edition = "2021"
 authors = ["Harrison Knight", "hijknight@icloud.com"]
 description = "Note taker is an open source minimal note taking tool built in 30 minutes"
