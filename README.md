@@ -32,7 +32,7 @@ $ cargo run
 - [Rust](https://www.rust-lang.org/)
 - [tui-rs](https://github.com/fdehau/tui-rs)
 - [crossterm](https://github.com/crossterm-rs/crossterm)
-- [serde](https://serde.rs/) / [serde_json](http s://github.com/serde-rs/json)
+- [serde](https://serde.rs/) / [serde_json](https://github.com/serde-rs/json)
 - [chrono](https://github.com/chronotope/chrono)
 
 ## Future
