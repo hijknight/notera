@@ -28,7 +28,7 @@ impl NoteUI {
                     .direction(Direction::Vertical)
                     .constraints([
                         Constraint::Length(3),  // Header len
-                        Constraint::Min(1)      // Notes section
+                        Constraint::Min(1)      // Notes section len
                     ])
                     .split(size);
 
