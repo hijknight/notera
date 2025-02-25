@@ -2,3 +2,4 @@
 /.idea
 Cargo.lock
 notes.json
+.DS_Store
