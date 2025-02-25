@@ -32,7 +32,7 @@ impl NoteUI {
                     ])
                     .split(size);
 
-                let title = Block::default().borders(Borders::ALL).title(" Note Taker ");
+                let title = Block::default().borders(Borders::ALL).title(" Note Taker -- 'q' to exit");
                 f.render_widget(title, layout[0]);
 
                 let notes_display = Paragraph::new(notes)
