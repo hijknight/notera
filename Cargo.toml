@@ -2,9 +2,10 @@
 name = "note-taker-rust"
 version = "0.0.1"
 edition = "2021"
-authors = ["Harrison Knight", "hijknight@icloud.com"]
+authors = ["Harrison Knight <hijknight@icloud.com>"]
 description = "Note taker is an open source minimal note taking tool built in 30 minutes"
 license = "MIT"
+readme = "README.md"
 repository = "https://github.com/hijknight/note-taker.git"
 
 
