@@ -16,9 +16,9 @@ A powerful, lightweight, and simple CLI-based note-taking application built with
 $ cargo install notera
 ```
 
-### 2. Build and Run
+### 2. Run
 ```bash
-$ notera help
+$ notera new <TITLE>
 ```
 
 ## 🏃‍♂️ Quick Start
