@@ -31,7 +31,7 @@ pub fn save_note(title: &str) {
     let new_note = Note {
         title: title.to_string(),
         content: note_content,
-        timestamp: Local::now().format("&Y-%m-%d %H:%M:%S").to_string(),
+        timestamp: Local::now().format("%Y-%m-%d %H:%M:%S").to_string(),
     };
 
     let file = OpenOptions::new()
@@ -107,8 +107,6 @@ pub fn edit_note(title: &str) {
             .join("\n");
 
         std::fs::write("notes.json", new_content).expect("Failed to write to file");
-
-        println!("Note updated successfully!");
     } else {
         println!("Note with title '{}' not found.", title);
     }
