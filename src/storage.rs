@@ -55,6 +55,8 @@ pub fn save_note(title: &str) {
         params![title.trim(), content, timestamp],
     ).expect("Failed to insert note");
 
+
+
     println!("Note saved successfully!");
 }
 
@@ -77,7 +79,7 @@ pub fn read_notes() -> Vec<String> {
 
     for note in notes_iter {
         let (title, content, timestamp) = note.unwrap();
-        notes.push(format!("Title: {}\n{}\nCreated: {}\n", title, content, timestamp));
+        notes.push(format!("Title: {}\nCreated: {}\n\n{}\n", title, timestamp, content));
     }
     notes
 }
@@ -120,13 +122,23 @@ pub fn edit_note(title: &str) {
 pub fn delete_note(title: &str) {
     let conn = init_db();
     let title = title.trim();
-
     let result = conn.execute("DELETE FROM notes WHERE title = ?1", params![title]);
     // I forgot an s in notes and it took me an hour to fix. ^^^ OMG
 
     match result {
         Ok(0) => println!("No note found with title '{}'", title),
-        Ok(_) => println!("Note '{}' deleted", title),
+        Ok(_) => {
+            println!("Note '{}' deleted", title);
+
+            let temp_file_path = format!("/tmp/{}.txt", title.replace(" ", "_"));
+            // if fs::remove_file(&temp_file_path).is_ok() {
+            //     println!("Temp file '{}' deleted.", temp_file_path);
+            // }
+            match fs::remove_file(&temp_file_path) {
+                Ok(_) => println!("Temp file '{}' deleted.", temp_file_path),
+                Err(e) => println!("Failed to delete temp file: {}", e),
+            }
+        },
         Err(e) => println!("Failed to delete note: {}", e),
     }
 }
