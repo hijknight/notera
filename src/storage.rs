@@ -1,8 +1,10 @@
 use chrono::Local;
-use std::fs::{OpenOptions, File};
-use std::process::Command;
-use std::env;
-use std::io::{Write, Read};
+use std::{
+    fs::{ OpenOptions, File },
+    process::Command,
+    env,
+    io::{ Read, Write },
+};
 use serde::{Serialize, Deserialize};
 
 #[derive(Serialize, Deserialize)]
@@ -13,11 +15,13 @@ pub struct Note {
 }
 
 pub fn save_note(title: &str) {
-    let temp_file_path = format!("/tmp/{}.txt", title.replace(" ", "_"));
+    let temp_file_path = format!("/tmp/{}.txt", title.replace(" ", "_")); // 
 
-    let _temp_file = File::create(&temp_file_path).expect("Failed to create temp file");
-    let editor = env::var("EDITOR").unwrap_or_else(|_| "nvim".to_string());
-    let _ = Command::new(editor)
+    let _temp_file = File::create(&temp_file_path).expect("Failed to create temp file"); // create file
+    
+    let editor = env::var("EDITOR").unwrap_or_else(|_| "vim".to_string()); // set vim as default unless decided differently
+
+    let _ = Command::new(editor) // open vim with the temp file path
         .arg(&temp_file_path)
         .status()
         .expect("Failed to open editor");
@@ -31,7 +35,7 @@ pub fn save_note(title: &str) {
     let new_note = Note {
         title: title.to_string(),
         content: note_content,
-        timestamp: Local::now().format("%Y-%m-%d %H:%M:%S").to_string(),
+        timestamp: Local::now().format("%Y-%m-%d %H:%M").to_string(),
     };
 
     let file = OpenOptions::new()
@@ -60,12 +64,12 @@ pub fn read_notes() -> String {
         .filter_map(|line| serde_json::from_str::<Note>(line).ok())
         .collect();
 
-    // Sort notes by timestamp (newest first)
+    // sort notes by timestamp (newest first)
     notes.sort_by(|a, b| b.timestamp.cmp(&a.timestamp));
 
     let mut output = String::new();
     for note in notes {
-        output.push_str(&format!("Title: {}\n{}\nCreated: {}\n\n", note.title, note.content, note.timestamp));
+        output.push_str(&format!("Title: {}\n\n{}\nCreated: {}\n---------------------\n", note.title, note.content, note.timestamp)); // make pretty
     }
 
     output
@@ -83,11 +87,12 @@ pub fn edit_note(title: &str) {
         .collect();
 
     if let Some(note) = notes.iter_mut().find(|note| note.title == title) {
+        
         let temp_file_path = format!("/tmp/{}.txt", title.replace(" ", "_"));
         let mut temp_file = File::create(&temp_file_path).expect("Failed to create temp file");
         write!(temp_file, "{}", note.content).expect("Failed to write to temp file");
 
-        let editor = env::var("EDITOR").unwrap_or_else(|_| "nvim".to_string());
+        let editor = env::var("EDITOR").unwrap_or_else(|_| "vim".to_string());
         let _ = Command::new(editor).
             arg(&temp_file_path).
             status().expect("Failed to open editor");
@@ -122,6 +127,7 @@ pub fn edit_note(title: &str) {
 
 
 pub fn delete_note(title: &str) {
+    
     let mut file = File::open("notes.json").unwrap_or_else(|_| File::create("notes.json").unwrap());
     let mut content = String::new();
     file.read_to_string(&mut content).expect("Failed to read file");
@@ -142,5 +148,4 @@ pub fn delete_note(title: &str) {
         .join("\n");
 
     std::fs::write("notes.json", new_content).expect("Failed to write to file");
-    println!("Note deleted successfully!");
 }

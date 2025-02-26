@@ -1,5 +1,5 @@
 [package]
-name = "note-taker-rust"
+name = "note-taker"
 version = "0.1.0-alpha.1"
 edition = "2021"
 authors = ["Harrison Knight <hijknight@icloud.com>"]
@@ -7,6 +7,10 @@ description = "Note taker is an open source minimal note taking tool built in 30
 license = "MIT"
 readme = "README.md"
 repository = "https://github.com/hijknight/note-taker.git"
+
+[[bin]]
+name = "note-taker"
+path = "src/main.rs"
 
 
 [dependencies]
