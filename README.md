@@ -11,7 +11,7 @@ A powerful, lightweight, and simple CLI-based note-taking application built with
 
 ## 📦 Installation
 
-### 1. Clone the Repository
+### 1. Install from crates.io
 ```bash
 $ cargo install notera
 ```
