@@ -123,7 +123,7 @@ pub fn delete_note(title: &str) {
     let conn = init_db();
     let title = title.trim();
     let result = conn.execute("DELETE FROM notes WHERE title = ?1", params![title]);
-    // I forgot an s in notes and it took me an hour to fix. ^^^ OMG
+    // I forgot an s in notes, and it took me an hour to fix. ^^^ OMG
 
     match result {
         Ok(0) => println!("No note found with title '{}'", title),
