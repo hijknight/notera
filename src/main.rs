@@ -6,8 +6,8 @@ use std::env;
 
 /// Note-Taker CLI App
 #[derive(Parser)]
-#[command(name = "note-taker")]
-#[command(version = "0.1.0.beta.0")]
+#[command(name = "notera")]
+#[command(version = "0.1.0.alpha.0")]
 #[command(about = "A simple CLI-based note-taking app", long_about = None)]
 struct Cli {
     #[command(subcommand)]
