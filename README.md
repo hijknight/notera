@@ -1,46 +1,56 @@
-# note-taker-rust 📝
+# notera 📝
 
-A lightweight and simple cli note-taking application built with [Rust](https://www.rust-lang.org/)
+A powerful, lightweight, and simple CLI-based note-taking application built with [Rust](https://www.rust-lang.org/).
 
-- ✅ Create, Edit, Delete, and View notes.
-- ✅ Note Sorting
-- ✅ Stores notes in JSON format
-- ✅ Simple terminal-based UI
+## 👣 Features
 
-## 📦 Install
+- 📋 Create, edit, delete, and view notes easily from your terminal using your favorite CLI editor (e.g., Vim, Nvim, Nano).
+- 📂 Organize and sort notes effortlessly.
+- 📦 Notes are safely stored using an SQLite database.
+- 🚀 Fast and efficient workflow tailored for CLI enthusiasts.
+
+## 📦 Installation
+
 ### 1. Clone the Repository
-``` bash
-$ git clone git@github.com:hijknight/note-taker.git
-$ cd note-taker
+```bash
+$ git clone <REPOSITORY_URL>
+$ cd notera
 ```
 
-### 2. Install Dependencies
-``` bash
-$ cargo build
+### 2. Build and Run
+```bash
+$ cargo build --release
+$ ./target/release/notera help
 ```
 
-### 3. Run
-``` bash
-$ cargo run
+## 🏃‍♂️ Quick Start
+
+To check the available commands, run:
+
+```bash
+$ notera help
 ```
 
-## ⌨️ Controls
-- Menu Options for actions
-- Press 'q' to exit tui note viewer
+## 💻 Supported CLI Actions
 
-## 👷 Built with:
-- [Rust](https://www.rust-lang.org/)
-- [tui-rs](https://github.com/fdehau/tui-rs)
-- [crossterm](https://github.com/crossterm-rs/crossterm)
-- [serde](https://serde.rs/) / [serde_json](https://github.com/serde-rs/json)
-- [chrono](https://github.com/chronotope/chrono)
+- `notera new <TITLE>`: Add a new note.
+- `notera list`: List all notes.
+- `notera edit <TITLE>`: Edit a specific note.
+- `notera delete <TITLE>`: Delete a specific note.
+- `notera config`: Set you favorite editor and notes directory.
+- `notera help`: Show the default help message.
 
-## Future
-- Keyboard navigation
-- Scrolling on long notes
-- Search notes with fuzzy finder or ripgrep
+## 👷 Built With
+
+- [Rust](https://www.rust-lang.org/) – for fast and safe application development.
+- [serde](https://serde.rs/) & [toml-rs](https://github.com/alexcrichton/toml-rs) – data serialization and configuration parsing.
+- [chrono](https://github.com/chronotope/chrono) – handling and formatting dates/timestamps.
+- [rusqlite](https://github.com/rusqlite/rusqlite) – lightweight SQLite database library integration.
+
+## 🔮 Future Plans
+
+- 🔍 Advanced search functionality using fuzzy matching or `ripgrep`.
 
 ## 🪪 License
 
-Feel free to use and modify
-
+This project is open-source and available under the MIT License
