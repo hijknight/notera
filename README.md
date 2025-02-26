@@ -13,14 +13,12 @@ A powerful, lightweight, and simple CLI-based note-taking application built with
 
 ### 1. Clone the Repository
 ```bash
-$ git clone <REPOSITORY_URL>
-$ cd notera
+$ cargo install notera
 ```
 
 ### 2. Build and Run
 ```bash
-$ cargo build --release
-$ ./target/release/notera help
+$ notera help
 ```
 
 ## 🏃‍♂️ Quick Start
