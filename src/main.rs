@@ -16,10 +16,17 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Commands {
+    /// create a new note with `notera new <TITLE>`
     New { title: String },
+    /// lists all notes
     List,
+    /// edit and existing note with `notera edit <TITLE>`
     Edit { title: String },
+    /// delete a specific note with `notera delete <TITLE>`
     Delete { title: String },
+    /// clears all notes
+    Clear,
+    /// opens config.toml in editor
     Config,
 }
 
@@ -36,6 +43,7 @@ fn main() {
             let editor = env::var("EDITOR").unwrap_or_else(|_| "vim".to_string());
             let _ = Command::new(editor).arg(&config_path).status();
         }
+        Some(Commands::Clear) => storage::clear_notes(),
         None => Cli::command().print_help().expect("Failed to display help"),
     }
 }

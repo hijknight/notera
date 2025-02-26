@@ -142,3 +142,46 @@ pub fn delete_note(title: &str) {
         Err(e) => println!("Failed to delete note: {}", e),
     }
 }
+
+// Clears all notes from db and tmp directory
+pub fn clear_notes() {
+    let conn = init_db();
+
+
+    println!("⚠️ WARNING: This will permanently delete all notes. Type 'yes' to confirm");
+    let mut confirmation = String::new();
+
+    std::io::stdin()
+        .read_line(&mut confirmation)
+        .expect("Failed to read line");
+
+    let confirmation = confirmation.trim().to_lowercase();
+
+    if confirmation != "yes" {
+        println!("❌ Clear operation aborted");
+        return;
+    }
+
+    match conn.execute("DELETE FROM notes", params![]) {
+        Ok(_) => println!("✅ Notes cleared from database."),
+        Err(e) => {
+            println!("❌ Failed to delete notes: {}", e);
+            return;
+        },
+    }
+
+    // delete temp files
+    let temp_file_path = "/tmp/";
+
+    if let Ok(entries) = fs::read_dir(temp_file_path) {
+        for entry in entries.flatten() {
+            if let Some(file_name) = entry.file_name().to_str() {
+                if file_name.ends_with(".txt") {
+                    let _ = fs::remove_file(entry.path()).expect("❌Failed to delete temp file");
+                }
+            }
+        }
+    }
+
+    println!("✅ Temporary note files cleared.");
+}

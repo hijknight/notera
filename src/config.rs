@@ -6,7 +6,6 @@ use std::{
 use serde::{ Serialize, Deserialize };
 use toml;
 use dirs;
-
 #[derive(Serialize, Deserialize)]
 pub struct Config {
     pub editor: String,
