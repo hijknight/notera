@@ -1,41 +1,41 @@
-mod ui;
 mod storage;
-mod input;
+mod config;
+use clap::{ Parser, Subcommand, CommandFactory };
+use std::process::Command;
+use std::env;
 
+/// Note-Taker CLI App
+#[derive(Parser)]
+#[command(name = "note-taker")]
+#[command(version = "0.1.0.beta.0")]
+#[command(about = "A simple CLI-based note-taking app", long_about = None)]
+struct Cli {
+    #[command(subcommand)]
+    command: Option<Commands>,
+}
 
-
-use input::get_user_input;
-use ui::NoteUI;
-
+#[derive(Subcommand)]
+enum Commands {
+    New { title: String },
+    List,
+    Edit { title: String },
+    Delete { title: String },
+    Config,
+}
 
 fn main() {
-    loop {
-        println!();
-        println!("| 1. Create Note\n| 2. View Notes\n| 3. Edit Note\n| 4. Delete Note\n| q. Exit");
-        println!();
-        let choice = get_user_input("| Choose an option: ");
+    let cli = Cli::parse();
 
-        match choice.trim() {
-            "1" => {
-                let title = get_user_input("Enter title: ");
-                storage::save_note(&title);
-            }
-            "2" => {
-                let notes = storage::read_notes();
-                if let Err(e) = NoteUI::draw_ui(&notes) {
-                    eprintln!("Error rendering UI: {}", e);
-                }
-            }
-            "3" => {
-                let title = get_user_input("Enter title of note to edit: ");
-                storage::edit_note(&title);
-            }
-            "4" => {
-                let title = get_user_input("Enter title of note to delete: ");
-                storage::delete_note(&title);
-            }
-            "q" => break,
-            _ => println!("Invalid choice, try again."),
+    match cli.command {
+        Some(Commands::New { title }) => storage::save_note(&title),
+        Some(Commands::List) => storage::read_notes().iter().for_each(|n| println!("{}", n)),
+        Some(Commands::Edit { title }) => storage::edit_note(&title),
+        Some(Commands::Delete { title }) => storage::delete_note(&title),
+        Some(Commands::Config) => {
+            let config_path = config::get_config_path();
+            let editor = env::var("EDITOR").unwrap_or_else(|_| "vim".to_string());
+            let _ = Command::new(editor).arg(&config_path).status();
         }
+        None => Cli::command().print_help().expect("Failed to display help"),
     }
 }

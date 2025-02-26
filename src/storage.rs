@@ -1,151 +1,132 @@
+use rusqlite::{ params, Connection };
+use std::fs;
+use std::path::PathBuf;
+use crate::config::Config;
 use chrono::Local;
-use std::{
-    fs::{ OpenOptions, File },
-    process::Command,
-    env,
-    io::{ Read, Write },
-};
-use serde::{Serialize, Deserialize};
-
-#[derive(Serialize, Deserialize)]
-pub struct Note {
-    pub title: String,
-    pub content: String,
-    pub timestamp: String,  // store timestamp as a string
+fn get_db_path() -> PathBuf {
+    let config = Config::load();
+    let mut path = PathBuf::from(config.note_directory);
+    fs::create_dir_all(&path).expect("Failed to create note directory");
+    path.push("notes.db");
+    path
 }
 
+fn init_db() -> Connection {
+    let db_path = get_db_path();
+    let conn = Connection::open(db_path).expect("Failed to open database");
+
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS notes (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            title TEXT NOT NULL,
+            content TEXT NOT NULL,
+            timestamp TEXT NOT NULL
+        )",
+        [],
+    ).expect("Failed to create table");
+
+    conn
+}
+
+
 pub fn save_note(title: &str) {
-    let temp_file_path = format!("/tmp/{}.txt", title.replace(" ", "_")); // 
+    let conn = init_db();
+    let editor = Config::load().editor;
 
-    let _temp_file = File::create(&temp_file_path).expect("Failed to create temp file"); // create file
-    
-    let editor = env::var("EDITOR").unwrap_or_else(|_| "vim".to_string()); // set vim as default unless decided differently
+    let temp_file_path = format!("/tmp/{}.txt", title.replace(" ", "_"));
 
-    let _ = Command::new(editor) // open vim with the temp file path
+    // open temp file
+    let _ = std::process::Command::new(&editor)
         .arg(&temp_file_path)
         .status()
         .expect("Failed to open editor");
 
-    let mut note_content = String::new();
-    File::open(&temp_file_path)
-        .expect("Failed. to open the temp file after editing")
-        .read_to_string(&mut note_content)
-        .expect("Failed to read temp file");
+    // read note content
+    let content = fs::read_to_string(&temp_file_path).unwrap_or_default().trim().to_string();
+    if content.is_empty() {
+        println!("Note discarded (empty content).");
+        return;
+    }
 
-    let new_note = Note {
-        title: title.to_string(),
-        content: note_content,
-        timestamp: Local::now().format("%Y-%m-%d %H:%M").to_string(),
-    };
+    let timestamp = Local::now().format("%Y-%m-%d %H:%M").to_string();
 
-    let file = OpenOptions::new()
-        .append(true)
-        .create(true)
-        .open("notes.json")
-        .expect("Unable to open file");
-
-    let serialized = serde_json::to_string(&new_note).expect("Failed to serialize note");
-    writeln!(&file, "{}", serialized).expect("Failed to write note");
+    conn.execute(
+        "INSERT INTO notes (title, content, timestamp) VALUES (?1, ?2, ?3)",
+        params![title.trim(), content, timestamp],
+    ).expect("Failed to insert note");
 
     println!("Note saved successfully!");
 }
 
-pub fn read_notes() -> String {
-    let mut file = File::open("notes.json").unwrap_or_else(|_| File::create("notes.json").unwrap());
-    let mut content = String::new();
-    file.read_to_string(&mut content).expect("Failed to read file");
 
-    if content.trim().is_empty() {
-        return "No notes available.".to_string();
+/// Read all existing notes
+pub fn read_notes() -> Vec<String> {
+
+    let conn = init_db();
+    let mut stmt = conn.prepare("SELECT title, content, timestamp FROM notes ORDER BY timestamp DESC").unwrap();
+    let notes_iter = stmt.query_map([], |row| {
+        let title: String = row.get(0)?;
+        let content: String = row.get(1)?;
+        let timestamp: String = row.get(2).unwrap_or_else(|_| "Unknown Timestamp".to_string()); // Handle missing column
+
+        Ok((title, content, timestamp))
+    }).unwrap();
+
+
+    let mut notes = Vec::new();
+
+    for note in notes_iter {
+        let (title, content, timestamp) = note.unwrap();
+        notes.push(format!("Title: {}\n{}\nCreated: {}\n", title, content, timestamp));
     }
-
-    let mut notes: Vec<Note> = content
-        .lines()
-        .filter_map(|line| serde_json::from_str::<Note>(line).ok())
-        .collect();
-
-    // sort notes by timestamp (newest first)
-    notes.sort_by(|a, b| b.timestamp.cmp(&a.timestamp));
-
-    let mut output = String::new();
-    for note in notes {
-        output.push_str(&format!("Title: {}\n\n{}\nCreated: {}\n---------------------\n", note.title, note.content, note.timestamp)); // make pretty
-    }
-
-    output
+    notes
 }
-
-
+/// Edit an existing note
 pub fn edit_note(title: &str) {
-    let mut file = File::open("notes.json").unwrap_or_else(|_| File::create("notes.json").unwrap());
-    let mut content = String::new();
-    file.read_to_string(&mut content).expect("Failed to read file");
+    let conn = init_db();
+    let editor = Config::load().editor;
 
-    let mut notes: Vec<Note> = content
-        .lines()
-        .filter_map(|line| serde_json::from_str::<Note>(line).ok())
-        .collect();
+    let mut stmt = conn.prepare("SELECT content FROM notes WHERE title = ?1").unwrap();
+    let content = stmt.query_row(params![title], |row| row.get(0)).unwrap_or_else(|_| "".to_string());
 
-    if let Some(note) = notes.iter_mut().find(|note| note.title == title) {
-        
-        let temp_file_path = format!("/tmp/{}.txt", title.replace(" ", "_"));
-        let mut temp_file = File::create(&temp_file_path).expect("Failed to create temp file");
-        write!(temp_file, "{}", note.content).expect("Failed to write to temp file");
-
-        let editor = env::var("EDITOR").unwrap_or_else(|_| "vim".to_string());
-        let _ = Command::new(editor).
-            arg(&temp_file_path).
-            status().expect("Failed to open editor");
-
-        let mut edited_content = String::new();
-        File::open(&temp_file_path)
-            .expect("Failed to open the temp file after editing")
-            .read_to_string(&mut edited_content)
-            .expect("Failed to read temp file");
-
-        note.content = edited_content.trim().to_string();
-        note.timestamp = Local::now().format("%Y-%m-%d %H:%M:%S").to_string();
-
-        let new_content = notes.iter()
-            .map(|note| serde_json::to_string(note).unwrap())
-            .collect::<Vec<String>>()
-            .join("\n");
-
-        std::fs::write("notes.json", new_content).expect("Failed to write to file");
-    } else {
-        println!("Note with title '{}' not found.", title);
+    if content.is_empty() {
+        println!("Note not found");
+        return;
     }
 
-    let new_content = notes.iter()
-        .map(|note| serde_json::to_string(note).unwrap())
-        .collect::<Vec<String>>()
-        .join("\n");
+    let temp_file_path = format!("/tmp/{}.txt", title.replace(" ", "_"));
+    fs::write(&temp_file_path, &content).expect("Failed to write file");
 
-    std::fs::write("notes.json", new_content).expect("Failed to write to file");
-    println!("Note updated successfully!");
+    let _ = std::process::Command::new(&editor)
+        .arg(&temp_file_path)
+        .status()
+        .expect("Failed to open editor");
+
+    let updated_content = fs::read_to_string(&temp_file_path).unwrap_or_default().trim().to_string();
+
+    if updated_content.is_empty() {
+        println!("No changes made.");
+        return;
+    }
+
+    conn.execute(
+        "UPDATE notes SET content = ?1, timestamp = datetime('now') WHERE title = ?2",
+        params![updated_content, title],
+    ).expect("Failed to update note");
+
+    println!("Note updated successfully!")
 }
-
 
 pub fn delete_note(title: &str) {
-    
-    let mut file = File::open("notes.json").unwrap_or_else(|_| File::create("notes.json").unwrap());
-    let mut content = String::new();
-    file.read_to_string(&mut content).expect("Failed to read file");
+    let conn = init_db();
+    let title = title.trim();
 
-    let notes: Vec<Note> = content
-        .lines()
-        .filter_map(|line| serde_json::from_str::<Note>(line).ok())
-        .filter(|note| note.title != title)
-        .collect();
+    let result = conn.execute("DELETE FROM notes WHERE title = ?1", params![title]);
+    // I forgot an s in notes and it took me an hour to fix. ^^^ OMG
 
-    if notes.len() == content.lines().count() {
-        println!("Note with title '{}' not found", title);
+    match result {
+        Ok(0) => println!("No note found with title '{}'", title),
+        Ok(_) => println!("Note '{}' deleted", title),
+        Err(e) => println!("Failed to delete note: {}", e),
     }
-
-    let new_content = notes.iter()
-        .map(|note| serde_json::to_string(note).unwrap())
-        .collect::<Vec<String>>()
-        .join("\n");
-
-    std::fs::write("notes.json", new_content).expect("Failed to write to file");
 }
