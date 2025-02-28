@@ -111,9 +111,11 @@ pub fn edit_note(title: &str) {
         return;
     }
 
+    let timestamp = Local::now().format("%Y-%m-%d %H:%M").to_string();
+
     conn.execute(
-        "UPDATE notes SET content = ?1, timestamp = datetime('now') WHERE title = ?2",
-        params![updated_content, title],
+        "UPDATE notes SET content = ?1, timestamp = ?2 WHERE title = ?3",
+        params![updated_content, timestamp, title],
     ).expect("Failed to update note");
 
     println!("Note updated successfully!")
