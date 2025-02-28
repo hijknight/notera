@@ -6,14 +6,14 @@ use chrono::Local;
 fn get_db_path() -> PathBuf {
     let config = Config::load();
     let mut path = PathBuf::from(config.note_directory);
-    fs::create_dir_all(&path).expect("Failed to create note directory");
+    fs::create_dir_all(&path).expect("❌ Failed to create note directory");
     path.push("notes.db");
     path
 }
 
 fn init_db() -> Connection {
     let db_path = get_db_path();
-    let conn = Connection::open(db_path).expect("Failed to open database");
+    let conn = Connection::open(db_path).expect("❌ Failed to open database");
 
     conn.execute(
         "CREATE TABLE IF NOT EXISTS notes (
@@ -23,7 +23,7 @@ fn init_db() -> Connection {
             timestamp TEXT NOT NULL
         )",
         [],
-    ).expect("Failed to create table");
+    ).expect("❌ Failed to create table");
 
     conn
 }
@@ -39,12 +39,12 @@ pub fn save_note(title: &str) {
     let _ = std::process::Command::new(&editor)
         .arg(&temp_file_path)
         .status()
-        .expect("Failed to open editor");
+        .expect("❌ Failed to open editor");
 
     // read note content
     let content = fs::read_to_string(&temp_file_path).unwrap_or_default().trim().to_string();
     if content.is_empty() {
-        println!("Note discarded (empty content).");
+        println!("⚠️ Note discarded (empty content).");
         return;
     }
 
@@ -53,11 +53,11 @@ pub fn save_note(title: &str) {
     conn.execute(
         "INSERT INTO notes (title, content, timestamp) VALUES (?1, ?2, ?3)",
         params![title.trim(), content, timestamp],
-    ).expect("Failed to insert note");
+    ).expect("❌ Failed to insert note");
 
 
 
-    println!("Note saved successfully!");
+    println!("✅ Note saved successfully!");
 }
 
 
@@ -79,7 +79,7 @@ pub fn read_notes() -> Vec<String> {
 
     for note in notes_iter {
         let (title, content, timestamp) = note.unwrap();
-        notes.push(format!("Title: {}\nCreated: {}\n\n{}\n", title, timestamp, content));
+        notes.push(format!("📝 Title: {}\n⏳ Created: {}\n\n{}\n", title, timestamp, content));
     }
     notes
 }
@@ -92,22 +92,22 @@ pub fn edit_note(title: &str) {
     let content = stmt.query_row(params![title], |row| row.get(0)).unwrap_or_else(|_| "".to_string());
 
     if content.is_empty() {
-        println!("Note not found");
+        println!("⚠️ Note not found");
         return;
     }
 
     let temp_file_path = format!("/tmp/{}.txt", title.replace(" ", "_"));
-    fs::write(&temp_file_path, &content).expect("Failed to write file");
+    fs::write(&temp_file_path, &content).expect("❌ Failed to write file");
 
     let _ = std::process::Command::new(&editor)
         .arg(&temp_file_path)
         .status()
-        .expect("Failed to open editor");
+        .expect("❌ Failed to open editor");
 
     let updated_content = fs::read_to_string(&temp_file_path).unwrap_or_default().trim().to_string();
 
     if updated_content.is_empty() {
-        println!("No changes made.");
+        println!("⚠️ No changes made.");
         return;
     }
 
@@ -118,7 +118,7 @@ pub fn edit_note(title: &str) {
         params![updated_content, timestamp, title],
     ).expect("Failed to update note");
 
-    println!("Note updated successfully!")
+    println!("✅ Note updated successfully!")
 }
 
 pub fn delete_note(title: &str) {
@@ -128,20 +128,20 @@ pub fn delete_note(title: &str) {
     // I forgot an s in notes, and it took me an hour to fix. ^^^ OMG
 
     match result {
-        Ok(0) => println!("No note found with title '{}'", title),
+        Ok(0) => println!("⚠️No note found with title '{}'", title),
         Ok(_) => {
-            println!("Note '{}' deleted", title);
+            println!("✅ Note '{}' deleted", title);
 
             let temp_file_path = format!("/tmp/{}.txt", title.replace(" ", "_"));
             // if fs::remove_file(&temp_file_path).is_ok() {
             //     println!("Temp file '{}' deleted.", temp_file_path);
             // }
             match fs::remove_file(&temp_file_path) {
-                Ok(_) => println!("Temp file '{}' deleted.", temp_file_path),
-                Err(e) => println!("Failed to delete temp file: {}", e),
+                Ok(_) => println!("✅ Temp file '{}' deleted.", temp_file_path),
+                Err(e) => println!("❌ Failed to delete temp file: {}", e),
             }
         },
-        Err(e) => println!("Failed to delete note: {}", e),
+        Err(e) => println!("❌ Failed to delete note: {}", e),
     }
 }
 
