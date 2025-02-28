@@ -11,14 +11,26 @@ A powerful, lightweight, and simple CLI-based note-taking application built with
 
 ## 📦 Installation
 
-### 1. Install from crates.io
+### Option 1: Clone repository
+1. Clone
 ```bash
-$ cargo install notera
+git clone https://github.com/hijknight/notera.git
+```
+2. Build notera
+```bash
+cd notera && cargo build --release
 ```
 
-### 2. Run
+3. Add notera command to path
+
+macOS:
 ```bash
-$ notera new <TITLE>
+sudo mv target/release/notera /usr/local/bin
+```
+
+Windows:
+```rust
+// Coming Soon 🔜
 ```
 
 ## 🏃‍♂️ Quick Start
@@ -47,7 +59,7 @@ $ notera help
 
 ## 🔮 Future Plans
 
-- 🔍 Advanced search functionality using fuzzy matching or `ripgrep`.
+- Colorized tui 🟩 🟥 with [colored](https://crates.io/crates/colored) crate
 
 ## 🪪 License
 
