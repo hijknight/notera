@@ -1,8 +1,8 @@
-mod storage;
 mod config;
-use clap::{ Parser, Subcommand, CommandFactory };
-use std::process::Command;
+mod storage;
+use clap::{CommandFactory, Parser, Subcommand};
 use std::env;
+use std::process::Command;
 
 /// Note-Taker CLI App
 #[derive(Parser)]
@@ -26,12 +26,14 @@ enum Commands {
     Delete { title: String },
     /// clears all notes
     Clear,
-    // exports notes to a txt or md file
-    Export { format: String, output_path: Option<String> },
+    /// exports notes to a txt or md file
+    Export {
+        format: String,
+        output_path: Option<String>,
+    },
     /// opens config.toml in editor
     Config,
 }
-
 
 fn main() {
     let cli = Cli::parse();
@@ -53,7 +55,10 @@ fn main() {
 
         Some(Commands::Clear) => storage::clear_notes(),
 
-        Some(Commands::Export {format, output_path}) => storage::export_notes(&format, output_path.as_deref()),
+        Some(Commands::Export {
+            format,
+            output_path,
+        }) => storage::export_notes(&format, output_path.as_deref()),
 
         None => Cli::command().print_help().expect("Failed to display help"),
     }
