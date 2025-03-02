@@ -10,6 +10,7 @@ use dirs;
 pub struct Config {
     pub editor: String,
     pub note_tmp_directory: String,
+    pub export_path: String,
 }
 
 impl Config {
@@ -20,7 +21,7 @@ impl Config {
             let default_config = Config {
                 editor: "vim".to_string(),
                 note_tmp_directory: format!("{}/.local/share/notera", std::env::var("HOME").unwrap_or_else(|_| ".".to_string())),
-
+                export_path: format!("{}/Documents/notera_exports", std::env::var("HOME").unwrap_or_else(|_| ".".to_string())),
             };
 
             let toml_content = toml::to_string(&default_config).expect("Failed to serialize config");
@@ -46,3 +47,4 @@ pub fn get_config_path() -> PathBuf {
     path.push("config.toml");
     path
 }
+
