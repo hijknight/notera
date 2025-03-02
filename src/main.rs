@@ -26,24 +26,35 @@ enum Commands {
     Delete { title: String },
     /// clears all notes
     Clear,
+    // exports notes to a txt or md file
+    Export { format: String, output_path: Option<String> },
     /// opens config.toml in editor
     Config,
 }
+
 
 fn main() {
     let cli = Cli::parse();
 
     match cli.command {
         Some(Commands::New { title }) => storage::save_note(&title),
+
         Some(Commands::List) => storage::read_notes().iter().for_each(|n| println!("{}", n)),
+
         Some(Commands::Edit { title }) => storage::edit_note(&title),
+
         Some(Commands::Delete { title }) => storage::delete_note(&title),
+
         Some(Commands::Config) => {
             let config_path = config::get_config_path();
             let editor = env::var("EDITOR").unwrap_or_else(|_| "vim".to_string());
             let _ = Command::new(editor).arg(&config_path).status();
         }
+
         Some(Commands::Clear) => storage::clear_notes(),
+
+        Some(Commands::Export {format, output_path}) => storage::export_notes(&format, output_path.as_deref()),
+
         None => Cli::command().print_help().expect("Failed to display help"),
     }
 }
