@@ -33,7 +33,6 @@ pub fn clean() {
     let config_path = crate::config::get_config_path();
     let export_path = crate::config::Config::load().export_path;
     let temp_dir = "/tmp/"; // Temporary directory path
-    println!("Temp dir: {}", temp_dir);
 
     println!("⚠️ WARNING: This will delete all Notera data, temporary files, and optionally the configuration file. Type 'yes' to confirm:");
     let mut confirmation = String::new();
@@ -75,8 +74,8 @@ pub fn clean() {
     }
 
     if config_path.exists() {
-        match fs::remove_file(config_path) {
-            Ok(_) => println!("✅ Configuration file deleted."),
+        match fs::remove_file(&config_path) {
+            Ok(_) => println!("✅ Configuration file deleted from {}.", config_path.display()),
             Err(e) => eprintln!("❌ Failed to delete configuration file: {}", e),
         }
     } else {
