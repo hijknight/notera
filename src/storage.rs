@@ -230,12 +230,12 @@ pub fn export_notes(format: &str) {
     let mut file = fs::File::create(&output_path).expect("❌ Failed to create file");
 
     match format {
-        "--txt" => {
+        "txt" => {
             for (title, content, timestamp) in &notes {
                 writeln!(file, "Title: {}\n\nCreated: {}\n-----\n\n{}\n-----------", title, timestamp, content).expect("❌ Failed to write to file");
             }
         },
-        "--md" => {
+        "md" => {
             for (title, content, timestamp) in &notes {
                 writeln!(file, "## 📝 {}\n\n#### ⏳ *Created: {}*\n\n{}---\n", title, timestamp, content).expect("❌ Failed to write to file");
             }

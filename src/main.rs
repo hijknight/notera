@@ -26,7 +26,7 @@ enum Commands {
     Delete { title: String },
     /// clears all notes
     Clear,
-    /// exports notes to a txt or md file ex: `notera export --md`
+    /// exports notes to a txt or md file ex: `notera export md`
     Export { format: String },
     /// opens config.toml in editor
     Config,
@@ -37,14 +37,13 @@ enum Commands {
 }
 
 fn main() {
-
-
     let cli = Cli::parse();
 
     if !setup::is_initialized() && cli.command != Some(Commands::Init) {
         println!("❌ Notera not yet setup. Run `notera init` to initialize and set configuration options.");
         process::exit(1);
     }
+
 
     match cli.command {
         Some(Commands::New { title }) => storage::save_note(&title),
@@ -71,8 +70,8 @@ fn main() {
             setup::clean();
         }
 
-        None => {
 
+        None => {
             Cli::command().print_help().expect("Failed to display help")
         },
     }
