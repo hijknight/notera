@@ -1,5 +1,6 @@
 use rusqlite::{ params, Connection };
 use std::fs;
+use std::io::Write;
 use std::path::PathBuf;
 use crate::config::Config;
 use chrono::Local;
@@ -186,4 +187,56 @@ pub fn clear_notes() {
     }
 
     println!("✅ Temporary note files cleared.");
+}
+
+
+pub fn export_notes(format: &str, output_path: Option<&str>) {
+    let conn = init_db();
+    let mut stmt = conn.prepare("SELECT title, content, timestamp FROM notes ORDER BY timestamp DESC").unwrap();
+
+    let notes_iter = stmt.query_map([], |row| {
+        Ok((
+            row.get::<_, String>(0)?,
+            row.get::<_, String>(1)?,
+            row.get::<_, String>(2)?,
+        ))
+    }).unwrap();
+
+    let mut notes = Vec::new();
+
+    for note in notes_iter {
+        let (title, content, timestamp) = note.unwrap();
+
+        notes.push((title, content, timestamp));
+    }
+
+    if notes.is_empty() {
+        println!("⚠️ No notes available to export_notes.");
+        return;
+    }
+
+    let timestamp = Local::now().format("%Y-%m-%d %H:%M").to_string();
+    let default_filename = format!("notera-export_notes-{}.{}", timestamp, format);
+    let output_file = output_path.unwrap_or(&default_filename);
+
+    let mut file = fs::File::create(output_file).expect("❌ Failed to create file");
+
+    match format {
+        "txt" => {
+            for (title, content, timestamp) in &notes {
+                writeln!(file, "Title: {}\n\nCreated: {}-----\n\n{}\n-----------", title, timestamp, content).expect("❌ Failed to write to file");
+            }
+        },
+        "md" => {
+            for (title, content, timestamp) in &notes {
+                writeln!(file, "## 📝 {}\n\n###⏳ *Created: {}*\n\n{}---\n", title, timestamp, content).expect("❌ Failed to write to file");
+            }
+        },
+        _ => {
+            println!("⚠️ Unsupported format: {}, use txt or md.", format);
+            return;
+        },
+    }
+
+    println!("✅ Notes exported successfully to {}", output_file);
 }
