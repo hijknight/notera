@@ -4,7 +4,9 @@ use std::io::Write;
 use std::path::PathBuf;
 use crate::config::Config;
 use chrono::Local;
-fn get_db_path() -> PathBuf {
+
+
+pub fn get_db_path() -> PathBuf {
     let config = Config::load();
     let mut path = PathBuf::from(config.note_tmp_directory);
     fs::create_dir_all(&path).expect("❌ Failed to create note directory");
@@ -12,7 +14,7 @@ fn get_db_path() -> PathBuf {
     path
 }
 
-fn init_db() -> Connection {
+pub fn init_db() -> Connection {
     let db_path = get_db_path();
     let conn = Connection::open(db_path).expect("❌ Failed to open database");
 
@@ -34,7 +36,7 @@ pub fn save_note(title: &str) {
     let conn = init_db();
     let editor = Config::load().editor;
 
-    let temp_file_path = format!("/tmp/{}.txt", title.replace(" ", "_"));
+    let temp_file_path = format!("/tmp/notera_{}.txt", title.replace(" ", "_"));
 
     // open temp file
     let _ = std::process::Command::new(&editor)
@@ -190,9 +192,15 @@ pub fn clear_notes() {
 }
 
 
-pub fn export_notes(format: &str, output_path: Option<&str>) {
+pub fn export_notes(format: &str) {
     let conn = init_db();
     let mut stmt = conn.prepare("SELECT title, content, timestamp FROM notes ORDER BY timestamp DESC").unwrap();
+    let export_path = Config::load().export_path;
+
+
+    if !fs::exists(&export_path).unwrap() {
+        fs::create_dir_all(&export_path).unwrap();
+    }
 
     let notes_iter = stmt.query_map([], |row| {
         Ok((
@@ -217,17 +225,17 @@ pub fn export_notes(format: &str, output_path: Option<&str>) {
 
     let timestamp = Local::now().format("%Y-%m-%d_%H:%M").to_string();
     let default_filename = format!("notera-export_notes-{}.{}", timestamp, format);
-    let output_file = output_path.unwrap_or(&default_filename);
+    let output_path = format!("{}/{}", export_path, default_filename);
 
-    let mut file = fs::File::create(output_file).expect("❌ Failed to create file");
+    let mut file = fs::File::create(&output_path).expect("❌ Failed to create file");
 
     match format {
-        "txt" => {
+        "--txt" => {
             for (title, content, timestamp) in &notes {
                 writeln!(file, "Title: {}\n\nCreated: {}\n-----\n\n{}\n-----------", title, timestamp, content).expect("❌ Failed to write to file");
             }
         },
-        "md" => {
+        "--md" => {
             for (title, content, timestamp) in &notes {
                 writeln!(file, "## 📝 {}\n\n#### ⏳ *Created: {}*\n\n{}---\n", title, timestamp, content).expect("❌ Failed to write to file");
             }
@@ -238,5 +246,5 @@ pub fn export_notes(format: &str, output_path: Option<&str>) {
         },
     }
 
-    println!("✅  Notes exported successfully to {}", output_file);
+    println!("✅  Notes exported successfully to {}", output_path);
 }
