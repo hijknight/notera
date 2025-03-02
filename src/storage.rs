@@ -6,7 +6,7 @@ use crate::config::Config;
 use chrono::Local;
 fn get_db_path() -> PathBuf {
     let config = Config::load();
-    let mut path = PathBuf::from(config.note_directory);
+    let mut path = PathBuf::from(config.note_tmp_directory);
     fs::create_dir_all(&path).expect("❌ Failed to create note directory");
     path.push("notes.db");
     path
@@ -215,7 +215,7 @@ pub fn export_notes(format: &str, output_path: Option<&str>) {
         return;
     }
 
-    let timestamp = Local::now().format("%Y-%m-%d %H:%M").to_string();
+    let timestamp = Local::now().format("%Y-%m-%d_%H:%M").to_string();
     let default_filename = format!("notera-export_notes-{}.{}", timestamp, format);
     let output_file = output_path.unwrap_or(&default_filename);
 
@@ -224,19 +224,19 @@ pub fn export_notes(format: &str, output_path: Option<&str>) {
     match format {
         "txt" => {
             for (title, content, timestamp) in &notes {
-                writeln!(file, "Title: {}\n\nCreated: {}-----\n\n{}\n-----------", title, timestamp, content).expect("❌ Failed to write to file");
+                writeln!(file, "Title: {}\n\nCreated: {}\n-----\n\n{}\n-----------", title, timestamp, content).expect("❌ Failed to write to file");
             }
         },
         "md" => {
             for (title, content, timestamp) in &notes {
-                writeln!(file, "## 📝 {}\n\n###⏳ *Created: {}*\n\n{}---\n", title, timestamp, content).expect("❌ Failed to write to file");
+                writeln!(file, "## 📝 {}\n\n#### ⏳ *Created: {}*\n\n{}---\n", title, timestamp, content).expect("❌ Failed to write to file");
             }
         },
         _ => {
-            println!("⚠️ Unsupported format: {}, use txt or md.", format);
+            println!("⚠️  Unsupported format: {}, use txt or md.", format);
             return;
         },
     }
 
-    println!("✅ Notes exported successfully to {}", output_file);
+    println!("✅  Notes exported successfully to {}", output_file);
 }
