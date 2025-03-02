@@ -1,11 +1,11 @@
 # notera 📝
 ![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/hijknight/notera/rust.yml)
 
-A powerful, lightweight, and simple CLI-based note-taking application built with [Rust](https://www.rust-lang.org/).
+A powerful and lightweight CLI-based note-taking app built with [Rust](https://www.rust-lang.org/).
 
 ## 👣 Features
 
-- 📋 Create, edit, delete, and view notes easily from your terminal using your favorite CLI editor (e.g., Vim, Nvim, Nano).
+- 📋 Create, edit, delete, and view notes easily from your terminal using your favorite CLI editor (e.g., Vim (default), Nvim, Nano).
 - 📂 Organize and sort notes effortlessly.
 - 🕒 Timestamps for notes to track when they were created or updated.
 - 🗑️ Clear all notes or delete them individually.
