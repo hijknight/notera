@@ -1,8 +1,8 @@
 mod config;
 mod storage;
+mod setup;
+use std::process;
 use clap::{CommandFactory, Parser, Subcommand};
-use std::env;
-use std::process::Command;
 
 /// Note-Taker CLI App
 #[derive(Parser)]
@@ -14,7 +14,7 @@ struct Cli {
     command: Option<Commands>,
 }
 
-#[derive(Subcommand)]
+#[derive(Subcommand, PartialEq)]
 enum Commands {
     /// create a new note with `notera new <TITLE>`
     New { title: String },
@@ -26,17 +26,25 @@ enum Commands {
     Delete { title: String },
     /// clears all notes
     Clear,
-    /// exports notes to a txt or md file
-    Export {
-        format: String,
-        output_path: Option<String>,
-    },
+    /// exports notes to a txt or md file ex: `notera export --md`
+    Export { format: String },
     /// opens config.toml in editor
     Config,
+    /// intitializes notera for first use
+    Init,
+    /// DANGER: deletes all notera data. Must run notera init to use again
+    Clean,
 }
 
 fn main() {
+
+
     let cli = Cli::parse();
+
+    if !setup::is_initialized() && cli.command != Some(Commands::Init) {
+        println!("❌ Notera not yet setup. Run `notera init` to initialize and set configuration options.");
+        process::exit(1);
+    }
 
     match cli.command {
         Some(Commands::New { title }) => storage::save_note(&title),
@@ -48,18 +56,26 @@ fn main() {
         Some(Commands::Delete { title }) => storage::delete_note(&title),
 
         Some(Commands::Config) => {
-            let config_path = config::get_config_path();
-            let editor = env::var("EDITOR").unwrap_or_else(|_| "vim".to_string());
-            let _ = Command::new(editor).arg(&config_path).status();
+            setup::open_config()
         }
 
         Some(Commands::Clear) => storage::clear_notes(),
 
-        Some(Commands::Export {
-            format,
-            output_path,
-        }) => storage::export_notes(&format, output_path.as_deref()),
+        Some(Commands::Export { format }) => storage::export_notes(&format),
 
-        None => Cli::command().print_help().expect("Failed to display help"),
+        Some(Commands::Init) => {
+            setup::init();
+        }
+
+        Some(Commands::Clean) => {
+            setup::clean();
+        }
+
+        None => {
+
+            Cli::command().print_help().expect("Failed to display help")
+        },
     }
 }
+
+
