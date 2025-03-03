@@ -64,7 +64,9 @@ notera help
   - `notera delete <TITLE>`: Delete a specific note.
   - `notera clear`: Permanently delete all notes.
   - `notera export <FORMAT>`: Export all notes to `.txt` or `.md` files.
-      - Example: `notera export txt`
+      - Example: `notera export txt` will export notes into a txt file into specified directory configured with `notera config`
+  - `notera import <FORMAT> <FILE_PATH>`: Import a note with a specified format (for in-house formatting) at a specified location.
+  - `notera import-dir <FORMAT> <FILE_PATH>`: Coming soon
 
 - Setup:
   - `notera config`: Open and modify the app's configuration settings.
@@ -97,7 +99,8 @@ Configuration options include the following:
 
 ## 🔮 Future Plans
 
-- Listening with ai
+- 📂 Import notes as directories with `notera import-dir <FORMAT> <FILE_PATH>`
+- Listening with AI
 
 ## 🪪 License
 
