@@ -259,6 +259,11 @@ pub fn export_notes(format: &str) {
 pub fn import_note(format: &str, file_path: &str) {
     let conn = init_db();
 
+    if format != "txt" && format != "md" {
+        println!("❌ Unsupported format: {}, use txt or md.", format);
+        return;
+    }
+
     let file_path = Path::new(file_path);
     if !file_path.exists() {
         println!("❌ File does not exist: {}", file_path.display());
