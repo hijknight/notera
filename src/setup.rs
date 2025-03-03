@@ -12,9 +12,10 @@ pub fn init() {
     let config_path = crate::config::get_config_path();
     let editor = env::var("EDITOR").unwrap_or_else(|_| "vim".to_string());
     let _ = Command::new(editor).arg(&config_path).status();
+    println!("✅ Config file created at {}", config_path.display());
 
     crate::storage::init_db();
-
+    println!("✅ Database created at {}\n", crate::storage::get_db_path().display());
     println!("✅ notera initialized successfully!");
 
 }
@@ -27,14 +28,14 @@ pub fn open_config() {
 
 
 
-/// Cleans up Notera's data, including the SQLite database, temp files, and optionally the config file.
+/// Cleans up notera's data, including the SQLite database, temp files, and optionally the config file.
 pub fn clean() {
     let db_path = crate::storage::get_db_path();
     let config_path = crate::config::get_config_path();
     let export_path = crate::config::Config::load().export_path;
     let temp_dir = "/tmp/"; // Temporary directory path
 
-    println!("⚠️ WARNING: This will delete all Notera data, temporary files, and optionally the configuration file. Type 'yes' to confirm:");
+    println!("⚠️ WARNING: This will delete the notera database, temporary files, config file, and optionally the notera_export folder.\n\nType 'yes' to confirm:");
     let mut confirmation = String::new();
 
     io::stdin()
@@ -84,7 +85,28 @@ pub fn clean() {
 
     // delete exports
 
-    if Path::new(&export_path).exists() {
+    // optionally delete export folder.
+
+    let mut export_deletion_confirmation = String::new();
+    println!("🤷 Would you like to delete your notera export folder? (yes/no)");
+
+    io::stdin()
+        .read_line(&mut export_deletion_confirmation)
+        .expect("Failed to read user input");
+
+    if export_deletion_confirmation.trim().to_lowercase() != "yes" {
+        println!();
+        println!("✅ All files in '{}' prefixed with 'notera_' deleted.", temp_dir);
+        println!("✅ Notera database deleted");
+        println!("❌ Export folder not deleted per request.");
+        println!();
+        println!("✅ ✅ ❌ Clean operation completed.");
+        return;
+    }
+    // if user says yes, delete all files
+    let export_folder_exists: bool = Path::new(&export_path).exists();
+
+    if export_folder_exists {
         match fs::remove_dir_all(&export_path) {
             Ok(_) => println!("✅ All exported files and the export directory deleted: {}", export_path),
             Err(e) => eprintln!("❌ Failed to delete export files or folder: {}", e),
@@ -94,5 +116,14 @@ pub fn clean() {
     }
 
     println!();
-    println!("✅ ✅ ✅ ✅ ✅ Clean operation completed.");
+    println!("✅ All files in '{}' prefixed with 'notera_' deleted.", temp_dir);
+    println!("✅ Notera database deleted");
+    if !export_folder_exists {
+        println!("ℹ️ Attempted to delete export folder, but it did not exist.");
+    } else {
+        println!("✅ Export folder deleted.");
+    }
+
+    println!();
+    println!("✅ ✅ ✅ Clean operation completed.");
 }
