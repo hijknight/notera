@@ -36,7 +36,7 @@ pub fn save_note(title: &str) {
     let conn = init_db();
     let editor = Config::load().editor;
 
-    let temp_file_path = format!("/tmp/notera_{}.txt", title.replace(" ", "_"));
+    let temp_file_path = format!("/tmp/notera_{}.md", title.replace(" ", "_"));
 
     // open temp file
     let _ = std::process::Command::new(&editor)
@@ -68,7 +68,10 @@ pub fn save_note(title: &str) {
 pub fn read_notes() -> Vec<String> {
 
     let conn = init_db();
-    let mut stmt = conn.prepare("SELECT title, content, timestamp FROM notes ORDER BY timestamp DESC").unwrap();
+
+    let mut stmt = conn.prepare("SELECT title, content, timestamp FROM notes ORDER BY timestamp DESC")
+        .expect("❌ Failed to prepare query");
+
     let notes_iter = stmt.query_map([], |row| {
         let title: String = row.get(0)?;
         let content: String = row.get(1)?;
@@ -99,7 +102,7 @@ pub fn edit_note(title: &str) {
         return;
     }
 
-    let temp_file_path = format!("/tmp/{}.txt", title.replace(" ", "_"));
+    let temp_file_path = format!("/tmp/notera_{}.md", title.replace(" ", "_"));
     fs::write(&temp_file_path, &content).expect("❌ Failed to write file");
 
     let _ = std::process::Command::new(&editor)
@@ -135,13 +138,16 @@ pub fn delete_note(title: &str) {
         Ok(_) => {
             println!("✅ Note '{}' deleted", title);
 
-            let temp_file_path = format!("/tmp/{}.txt", title.replace(" ", "_"));
+            let temp_file_path = format!("/tmp/{}.md", title.replace(" ", "_"));
             // if fs::remove_file(&temp_file_path).is_ok() {
             //     println!("Temp file '{}' deleted.", temp_file_path);
             // }
             match fs::remove_file(&temp_file_path) {
                 Ok(_) => println!("✅ Temp file '{}' deleted.", temp_file_path),
-                Err(e) => println!("❌ Failed to delete temp file: {}", e),
+                Err(e) => {
+                    println!("❌ Failed to delete temp file: {}", e);
+                    println!("ℹ️ Normally, this happens because the file was imported, so no file was created in the /tmp directory.")
+                }
             }
         },
         Err(e) => println!("❌ Failed to delete note: {}", e),
@@ -181,8 +187,11 @@ pub fn clear_notes() {
     if let Ok(entries) = fs::read_dir(temp_file_path) {
         for entry in entries.flatten() {
             if let Some(file_name) = entry.file_name().to_str() {
-                if file_name.ends_with(".txt") {
-                    let _ = fs::remove_file(entry.path()).expect("❌Failed to delete temp file");
+                if file_name.starts_with("notera_") {
+                    let _ = fs::remove_file(entry.path()).unwrap_or_else(|err| {
+                        println!("❌ Failed to delete tmp file: {}", err);
+                        println!("ℹ️ Normally, this happens because the file was imported, so no file was created in the /tmp directory.")
+                    });
                 }
             }
         }
@@ -228,7 +237,7 @@ pub fn export_notes(format: &str) {
         return;
     }
 
-    let export_timestamp = Local::now().format("%Y-%m-%d_%H:%M").to_string();
+    let export_timestamp = Local::now().format("%Y-%m-%d_%H.%M").to_string();
     let default_filename = format!("notera-export_notes-{}.{}", export_timestamp, format);
     let output_path = format!("{}/{}", export_path, default_filename);
 
