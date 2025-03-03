@@ -1,13 +1,16 @@
 mod config;
 mod storage;
 mod setup;
+mod error;
+
+
 use std::process;
 use clap::{CommandFactory, Parser, Subcommand};
 
 /// Note-Taker CLI App
 #[derive(Parser)]
 #[command(name = "notera")]
-#[command(version = "0.1.0.alpha.0")]
+#[command(version = "0.1.0.beta.0")]
 #[command(about = "A simple CLI-based note-taking app", long_about = None)]
 struct Cli {
     #[command(subcommand)]
