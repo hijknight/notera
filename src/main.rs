@@ -26,11 +26,13 @@ enum Commands {
     Delete { title: String },
     /// clears all notes
     Clear,
-    /// exports notes to a txt or md file ex: `notera export md`
+    /// import a note in .txt or .md format with `notera import <FORMAT> <FILE_PATH>`
+    Import { format: String, file_path: String },
+    /// exports notes to a txt or md file ex: `notera export <FORMAT>`
     Export { format: String },
     /// opens config.toml in editor
     Config,
-    /// intitializes notera for first use
+    /// intitializes or reinitializes notera
     Init,
     /// DANGER: deletes all notera data. Must run notera init to use again
     Clean,
@@ -60,16 +62,13 @@ fn main() {
 
         Some(Commands::Clear) => storage::clear_notes(),
 
+        Some(Commands::Import { format, file_path }) => storage::import_note(&format, &file_path),
+
         Some(Commands::Export { format }) => storage::export_notes(&format),
 
-        Some(Commands::Init) => {
-            setup::init();
-        }
+        Some(Commands::Init) => setup::init(),
 
-        Some(Commands::Clean) => {
-            setup::clean();
-        }
-
+        Some(Commands::Clean) => setup::clean(),
 
         None => {
             Cli::command().print_help().expect("Failed to display help")
