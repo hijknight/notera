@@ -1,14 +1,14 @@
 use rusqlite::{ params, Connection };
 use std::fs;
 use std::io::Write;
-use std::path::PathBuf;
+use std::path::{ PathBuf, Path };
 use crate::config::Config;
 use chrono::Local;
 
 
 pub fn get_db_path() -> PathBuf {
     let config = Config::load();
-    let mut path = PathBuf::from(config.note_tmp_directory);
+    let mut path = PathBuf::from(config.note_db_directory);
     fs::create_dir_all(&path).expect("❌ Failed to create note directory");
     path.push("notes.db");
     path
@@ -196,6 +196,11 @@ pub fn export_notes(format: &str) {
     let conn = init_db();
     let mut stmt = conn.prepare("SELECT title, content, timestamp FROM notes ORDER BY timestamp DESC").unwrap();
     let export_path = Config::load().export_path;
+    //early check
+    if format != "txt" && format != "md" {
+        println!("⚠️ Unsupported format: {}, use txt or md.", format);
+        return;
+    }
 
 
     if !fs::exists(&export_path).unwrap() {
@@ -223,8 +228,8 @@ pub fn export_notes(format: &str) {
         return;
     }
 
-    let timestamp = Local::now().format("%Y-%m-%d_%H:%M").to_string();
-    let default_filename = format!("notera-export_notes-{}.{}", timestamp, format);
+    let export_timestamp = Local::now().format("%Y-%m-%d_%H:%M").to_string();
+    let default_filename = format!("notera-export_notes-{}.{}", export_timestamp, format);
     let output_path = format!("{}/{}", export_path, default_filename);
 
     let mut file = fs::File::create(&output_path).expect("❌ Failed to create file");
@@ -236,10 +241,12 @@ pub fn export_notes(format: &str) {
             }
         },
         "md" => {
+            writeln!(file, "# notera markdown export {}\n", export_timestamp).expect("❌ Failed to write to file");
             for (title, content, timestamp) in &notes {
-                writeln!(file, "## 📝 {}\n\n#### ⏳ *Created: {}*\n\n{}---\n", title, timestamp, content).expect("❌ Failed to write to file");
+                writeln!(file, "## 📝 {}\n\n#### ⏳ *Created: {}*\n\n{}\n---\n", title, timestamp, content).expect("❌ Failed to write to file");
             }
         },
+        // catch all pattern to satisfy compiler. will never be run.
         _ => {
             println!("⚠️  Unsupported format: {}, use txt or md.", format);
             return;
@@ -247,4 +254,69 @@ pub fn export_notes(format: &str) {
     }
 
     println!("✅  Notes exported successfully to {}", output_path);
+}
+
+pub fn import_note(format: &str, file_path: &str) {
+    let conn = init_db();
+
+    let file_path = Path::new(file_path);
+    if !file_path.exists() {
+        println!("❌ File does not exist: {}", file_path.display());
+        return;
+    }
+
+    let content = fs::read_to_string(file_path).unwrap_or_default();
+    if content.trim().is_empty() {
+        println!("❌ File is empty: {}. Nothing to import.", file_path.display());
+        return;
+    }
+
+    let (title, content) = match format {
+        "txt" => {
+            parse_txt(&content)
+
+        }
+        "md" => {
+            parse_md(&content)
+        }
+        _ => {
+            println!("❌ Unsupported format: {}, use txt or md.", format);
+            return;
+        }
+    };
+
+    let mut stmt = conn.prepare("SELECT COUNT(*) FROM notes WHERE title = ?1").unwrap();
+    let count = stmt.query_row(params![title], |row| row.get(0)).unwrap_or(0);
+
+    if count > 0 {
+        println!("⚠️ Note with title '{}' already exists. Skipping import.", title);
+        return;
+    }
+
+    let timestamp = Local::now().format("%Y-%m-%d %H:%M").to_string();
+    conn.execute(
+        "INSERT INTO notes (title, content, timestamp) VALUES (?1, ?2, ?3)",
+        params![title, content, timestamp],
+    ).expect("Failed to insert note");
+
+
+    println!("✅ Imported note '{}' from '{}' successfully!", title, file_path.display());
+}
+
+fn parse_txt(content: &str) -> (String, String) {
+    let mut lines = content.lines();
+    let title = lines.next().unwrap_or("Untitled").trim().to_string();
+    let content: String = lines.collect::<Vec<&str>>().join("\n").trim().to_string();
+
+    (title, content)
+}
+
+fn parse_md(content: &str) -> (String, String) {
+    let mut lines = content.lines();
+    let title = lines.next().unwrap_or("Untitled").trim().replace(" ", "_").to_string();
+    let content: String = lines.collect::<Vec<&str>>().join("\n").trim().to_string();
+
+    let title = title.trim_start_matches('#').trim().to_string();
+
+    (title, content)
 }
