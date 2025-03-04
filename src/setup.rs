@@ -1,4 +1,5 @@
 use std::{env, process::Command, fs, io, path::Path};
+use crate::error::{NoteraError, Result, print_warning} ;
 
 pub fn is_initialized() -> bool {
     let config_path = crate::config::get_config_path();
@@ -6,33 +7,47 @@ pub fn is_initialized() -> bool {
 }
 
 
-pub fn init() {
-    crate::config::Config::load();
+pub fn init() -> Result<()> {
+    crate::config::Config::load()?;
 
     let config_path = crate::config::get_config_path();
     let editor = env::var("EDITOR").unwrap_or_else(|_| "vim".to_string());
-    let _ = Command::new(editor).arg(&config_path).status();
+
+    let status = Command::new(&editor).arg(&config_path).status()
+        .map_err(|e| NoteraError::Other(format!("Failed to open config file with editor: {}", e)))?;
+
     println!("✅ Config file created at {}", config_path.display());
 
-    crate::storage::init_db();
-    println!("✅ Database created at {}\n", crate::storage::get_db_path().display());
+    if !status.success() {
+        return Err(NoteraError::Other("Config file opened with editor, but no changes were made.".to_string()));
+    }
+    let db_conn = crate::storage::init_db()?;
+    println!("✅ Database created at {}\n", crate::storage::get_db_path()?.display());
     println!("✅ notera initialized successfully!");
 
+    Ok(())
 }
 
-pub fn open_config() {
+pub fn open_config() -> Result<()> {
     let config_path = crate::config::get_config_path();
     let editor = env::var("EDITOR").unwrap_or_else(|_| "vim".to_string());
-    let _ = Command::new(editor).arg(&config_path).status();
+
+    let status = Command::new(editor).arg(&config_path).status()
+        .map_err(|e| NoteraError::Other(format!("Failed to open config file with editor: {}", e)))?;
+
+    if !status.success() {
+        return Err(NoteraError::Other("Config file opened with editor, but no changes were made.".to_string()));
+    }
+    Ok(())
 }
 
 
 
 /// Cleans up notera's data, including the SQLite database, temp files, and optionally the config file.
-pub fn clean() {
-    let db_path = crate::storage::get_db_path();
+pub fn clean() -> Result<()> {
+    let db_path = crate::storage::get_db_path()?;
     let config_path = crate::config::get_config_path();
-    let export_path = crate::config::Config::load().export_path;
+    let export_path = crate::config::Config::load()?.export_path;
     let temp_dir = "/tmp/"; // Temporary directory path
 
     println!("⚠️ WARNING: This will delete the notera database, temporary files, config file, and optionally the notera_export folder.\n\nType 'yes' to confirm:");
@@ -40,11 +55,11 @@ pub fn clean() {
 
     io::stdin()
         .read_line(&mut confirmation)
-        .expect("Failed to read user input");
+        .map_err(|e| NoteraError::UserInput(format!("Failed to read user input: {}", e)))?;
 
     if confirmation.trim().to_lowercase() != "yes" {
         println!("❌ Clean operation aborted.");
-        return;
+        return Ok(());
     }
 
     // Delete the database file
@@ -92,7 +107,7 @@ pub fn clean() {
 
     io::stdin()
         .read_line(&mut export_deletion_confirmation)
-        .expect("Failed to read user input");
+        .map_err(|e| NoteraError::UserInput(format!("Failed to read user input: {}", e)))?;
 
     if export_deletion_confirmation.trim().to_lowercase() != "yes" {
         println!();
@@ -101,7 +116,7 @@ pub fn clean() {
         println!("❌ Export folder not deleted per request.");
         println!();
         println!("✅ ✅ ❎ Clean operation completed.");
-        return;
+        return Ok(());
     }
     // if user says yes, delete all files
     let export_folder_exists: bool = Path::new(&export_path).exists();
@@ -126,4 +141,5 @@ pub fn clean() {
 
     println!();
     println!("✅ ✅ ✅ Clean operation completed.");
+    Ok(())
 }
