@@ -100,7 +100,7 @@ pub fn clean() {
         println!("✅ Notera database deleted");
         println!("❌ Export folder not deleted per request.");
         println!();
-        println!("✅ ✅ ❌ Clean operation completed.");
+        println!("✅ ✅ ❎ Clean operation completed.");
         return;
     }
     // if user says yes, delete all files
