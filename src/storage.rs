@@ -319,28 +319,34 @@ pub fn export_note(format: &str, title_query: &str) {
             return;
         }
     }
-
+    println!();
     println!("✅ Note exported successfully to {} of {}", output_path, title_query);
 }
 
-pub fn import_note(format: &str, file_path: &str) {
-    let conn = init_db();
+pub fn import_note(conn: &rusqlite::Connection, format: &str, file_path: &str) -> bool {
 
     if format != "txt" && format != "md" {
         println!("❌ Unsupported format: {}, use txt or md.", format);
-        return;
+        return false;
     }
 
     let file_path = Path::new(file_path);
     if !file_path.exists() {
         println!("❌ File does not exist: {}", file_path.display());
-        return;
+        return false;
     }
 
-    let content = fs::read_to_string(file_path).unwrap_or_default();
+    let content = match fs::read_to_string(file_path) {
+        Ok(content) => content,
+        Err(e) => {
+            println!("Could not read file '{}': {}", file_path.display(), e);
+            return false;
+        },
+    };
+
     if content.trim().is_empty() {
         println!("❌ File is empty: {}. Nothing to import.", file_path.display());
-        return;
+        return false;
     }
 
     let (title, content) = match format {
@@ -351,9 +357,10 @@ pub fn import_note(format: &str, file_path: &str) {
         "md" => {
             parse_md(&content)
         }
+        // pattern will never be reached due to previous check
         _ => {
             println!("❌ Unsupported format: {}, use txt or md.", format);
-            return;
+            return false;
         }
     };
 
@@ -362,7 +369,7 @@ pub fn import_note(format: &str, file_path: &str) {
 
     if count > 0 {
         println!("⚠️ Note with title '{}' already exists. Skipping import.", title);
-        return;
+        return false;
     }
 
     let timestamp = Local::now().format("%Y-%m-%d %H:%M").to_string();
@@ -373,6 +380,45 @@ pub fn import_note(format: &str, file_path: &str) {
 
 
     println!("✅ Imported note '{}' from '{}' successfully!", title, file_path.display());
+    true
+}
+
+
+pub fn import_dir(directory: &str) {
+    let conn = init_db();
+    let dir_path = Path::new(directory);
+
+    if !dir_path.exists() || !dir_path.is_dir() {
+        println!("❌ Directory {} does not exist or is empty", dir_path.display());
+        return;
+    }
+
+    let mut imported_count = 0;
+
+    for entry in fs::read_dir(dir_path).expect("❌ Failed to read directory") {
+        if let Ok(entry) = entry {
+            let file_path = entry.path();
+            if let Some(ext) = file_path.extension() {
+                if ext == "txt" || ext == "md" {
+                    let file_path_str = file_path.to_str().unwrap();
+                    let format = ext.to_str().unwrap();
+
+                    println!("🗄️ Importing file: {}", file_path_str);
+                    if import_note(&conn, format, file_path_str) {
+                        imported_count += 1;
+                    }
+                }
+            }
+        }
+    }
+
+    println!();
+
+    if imported_count > 0 {
+        println!("✅ Successfully imported {} files", imported_count);
+    } else {
+        println!("⚠️ ℹ️ No new files found to import.")
+    }
 }
 
 fn parse_txt(content: &str) -> (String, String) {
@@ -385,10 +431,13 @@ fn parse_txt(content: &str) -> (String, String) {
 
 fn parse_md(content: &str) -> (String, String) {
     let mut lines = content.lines();
-    let title = lines.next().unwrap_or("Untitled").trim().replace(" ", "_").to_string();
-    let content: String = lines.collect::<Vec<&str>>().join("\n").trim().to_string();
+    let title = lines.next().unwrap_or("Untitled").trim();
 
-    let title = title.trim_start_matches('#').trim().to_string();
+    let title = title.trim_start_matches('#').trim();
+
+    let title = title.replace(" ", "_");
+
+    let content: String = lines.collect::<Vec<&str>>().join("\n").trim().to_string();
 
     (title, content)
 }
