@@ -6,6 +6,7 @@ use std::{
 use serde::{ Serialize, Deserialize };
 use toml;
 use dirs;
+use crate::error::{ Result, with_path };
 #[derive(Serialize, Deserialize)]
 pub struct Config {
     pub editor: String,
@@ -14,7 +15,7 @@ pub struct Config {
 }
 
 impl Config {
-    pub fn load() -> Self {
+    pub fn load() -> Result<Self> {
         let config_path = get_config_path();
 
         if !config_path.exists() {
@@ -24,20 +25,28 @@ impl Config {
                 export_path: format!("{}/Documents/notera_exports", std::env::var("HOME").unwrap_or_else(|_| ".".to_string())),
             };
 
-            let toml_content = toml::to_string(&default_config).expect("Failed to serialize config");
+            let toml_content = toml::to_string(&default_config)?;
 
-            fs::create_dir_all(config_path.parent().unwrap()).expect("Failed to create config directory");
-            fs::write(config_path, toml_content).expect("Failed to write config");
+            fs::create_dir_all(config_path.parent().unwrap())
+                .map_err(|e| with_path(e, config_path.parent().unwrap().to_path_buf()))?;
 
-            return default_config;
+            fs::write(&config_path, toml_content)
+                .map_err(|e| with_path(e, config_path.clone()))?;
+
+            return Ok(default_config);
         }
 
 
-        let mut file = fs::File::open(config_path).expect("Failed to open config file");
-        let mut contents = String::new();
-        file.read_to_string(&mut contents).expect("Failed to read config file");
+        let mut file = fs::File::open(&config_path)
+            .map_err(|e| with_path(e, config_path.clone()))?;
 
-        toml::from_str(&contents).expect("Failed to parse config")
+        let mut contents = String::new();
+
+        file.read_to_string(&mut contents)
+            .map_err(|e| with_path(e, config_path.clone()))?;
+
+        let config = toml::from_str(&contents)?;
+        Ok(config)
     }
 }
 
