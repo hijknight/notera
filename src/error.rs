@@ -1,5 +1,5 @@
 
-#![allow(unused)]
+
 
 use std::process::exit;
 use std::fmt;
