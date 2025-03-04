@@ -201,7 +201,7 @@ pub fn clear_notes() {
 }
 
 
-pub fn export_notes(format: &str) {
+pub fn export_all(format: &str) {
     let conn = init_db();
     let mut stmt = conn.prepare("SELECT title, content, timestamp FROM notes ORDER BY timestamp DESC").unwrap();
     let export_path = Config::load().export_path;
@@ -233,12 +233,12 @@ pub fn export_notes(format: &str) {
     }
 
     if notes.is_empty() {
-        println!("⚠️ No notes available to export_notes.");
+        println!("⚠️ No notes available to export_all.");
         return;
     }
 
     let export_timestamp = Local::now().format("%Y-%m-%d_%H.%M").to_string();
-    let default_filename = format!("notera-export_notes-{}.{}", export_timestamp, format);
+    let default_filename = format!("notera-export_all-{}.{}", export_timestamp, format);
     let output_path = format!("{}/{}", export_path, default_filename);
 
     let mut file = fs::File::create(&output_path).expect("❌ Failed to create file");
@@ -263,6 +263,64 @@ pub fn export_notes(format: &str) {
     }
 
     println!("✅  Notes exported successfully to {}", output_path);
+}
+
+pub fn export_note(format: &str, title_query: &str) {
+    let conn = init_db();
+    let mut stmt = conn.prepare("SELECT title, content, timestamp FROM notes WHERE title = ?1").expect("❌ Note not found in database.");
+    let export_path = Config::load().export_path;
+
+    if format != "txt" && format != "md" {
+        println!("⚠️ Unsupported format: {}, use txt or md.", format);
+        return;
+    }
+
+    if !fs::exists(&export_path).unwrap() {
+        fs::create_dir_all(&export_path).unwrap();
+    }
+
+    let notes_iter = stmt.query_map(params![title_query], |row| {
+        Ok((
+            row.get::<_, String>(0)?,
+            row.get::<_, String>(1)?,
+            row.get::<_, String>(2)?,
+        ))
+    }).unwrap();
+
+    let mut notes = Vec::new();
+
+    for note in notes_iter {
+        let (title, content, timestamp) = note.unwrap();
+
+        notes.push((title, content, timestamp));
+    }
+
+    let export_timestamp = Local::now().format("%Y-%m-%d_%H.%M").to_string();
+    let default_filename = format!("notera-export_{}-{}.{}", title_query, export_timestamp, format);
+    let output_path = format!("{}/{}", export_path, default_filename);
+
+    let mut file = fs::File::create(&output_path).expect("❌ Failed to create file");
+
+    match format {
+        "txt" => {
+            for (title, content, timestamp) in &notes {
+                writeln!(file, "Title: {}\n\nCreated: {}\n-----\n\n{}\n-----------", title, timestamp, content).expect("❌ Failed to write to file");
+            }
+        }
+        "md" => {
+            writeln!(file, "# notera markdown export {} for note {}\n", export_timestamp, title_query).expect("❌ Failed to write to file");
+            for (title, content, timestamp) in &notes {
+                writeln!(file, "## 📝 {}\n\n#### ⏳ *Created: {}*\n\n{}\n---\n", title, timestamp, content).expect("❌ Failed to write to file");
+            }
+        }
+        // the pattern below will never be able to be run, because of the check above.
+        _ => {
+            println!("Unsupported format: {}, use txt or md.", format);
+            return;
+        }
+    }
+
+    println!("✅ Note exported successfully to {} of {}", output_path, title_query);
 }
 
 pub fn import_note(format: &str, file_path: &str) {
