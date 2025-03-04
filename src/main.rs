@@ -29,10 +29,12 @@ enum Commands {
     Delete { title: String },
     /// clears all notes
     Clear,
-    /// import a note in .txt or .md format with `notera import <FORMAT> <FILE_PATH>`
-    Import { format: String, file_path: String },
-    /// exports notes to a txt or md file ex: `notera export <FORMAT>`
-    Export { format: String },
+    /// import a note in .txt or .md format with `notera import-note <FORMAT> <FILE_PATH>`
+    ImportNote { format: String, file_path: String },
+    /// exports notes to a txt or md file ex: `notera export-all <FORMAT>`
+    ExportAll { format: String },
+    /// exports a note given a format and title_query with `notera export-note <FORMAT> <TITLE>`
+    ExportNote { format: String, title: String },
     /// opens config.toml in editor
     Config,
     /// intitializes or reinitializes notera
@@ -65,9 +67,11 @@ fn main() {
 
         Some(Commands::Clear) => storage::clear_notes(),
 
-        Some(Commands::Import { format, file_path }) => storage::import_note(&format, &file_path),
+        Some(Commands::ImportNote { format, file_path }) => storage::import_note(&format, &file_path),
 
-        Some(Commands::Export { format }) => storage::export_notes(&format),
+        Some(Commands::ExportAll { format }) => storage::export_all(&format),
+
+        Some(Commands::ExportNote { format, title }) => storage::export_note(&format, &title),
 
         Some(Commands::Init) => setup::init(),
 
