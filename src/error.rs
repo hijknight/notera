@@ -16,9 +16,7 @@ use std::path::PathBuf;
 pub enum NoteraError {
     Database(rusqlite::Error),
     FileSystem(io::Error, Option<PathBuf>),
-    Config(String),
     Parse(String),
-    NotFound(String),
     Export(String),
     Import(String),
     UserInput(String),
@@ -31,9 +29,7 @@ impl fmt::Display for NoteraError {
             NoteraError::Database(err) => write!(f, "Database error: {}", err),
             NoteraError::FileSystem(err, Some(path)) => write!(f, "File system error: {} at {}", err, path.display()),
             NoteraError::FileSystem(err, None) => write!(f, "File system error: {}", err),
-            NoteraError::Config(msg) => write!(f, "Configuration error: {}", msg),
             NoteraError::Parse(msg) => write!(f, "Parsing error: {}", msg),
-            NoteraError::NotFound(msg) => write!(f, "Not found: {}", msg),
             NoteraError::Export(msg) => write!(f, "Export error: {}", msg),
             NoteraError::Import(msg) => write!(f, "Import error: {}", msg),
             NoteraError::UserInput(msg) => write!(f, "User input error: {}", msg),
@@ -72,9 +68,7 @@ pub fn handle_error(err: NoteraError) -> ! {
     match &err {
         NoteraError::Database(_) => handle_db_error(&err),
         NoteraError::FileSystem(_, _) => handle_fs_error(&err),
-        NoteraError::Config(_) => handle_config_error(&err),
         NoteraError::Parse(_) => handle_parse_error(&err),
-        NoteraError::NotFound(_) => handle_not_found_error(&err),
         NoteraError::Export(_) => handle_export_error(&err),
         NoteraError::Import(_) => handle_import_error(&err),
         NoteraError::UserInput(_) => handle_user_input_error(&err),
@@ -85,12 +79,10 @@ pub fn handle_error(err: NoteraError) -> ! {
 const EXIT_GENERAL: i32 = 1;
 const EXIT_DB_ERROR: i32 = 2;
 const EXIT_FS_ERROR: i32 = 3;
-const EXIT_CONFIG_ERROR: i32 = 4;
-const EXIT_PARSE_ERROR: i32 = 5;
-const EXIT_NOT_FOUND: i32 = 6;
-const EXIT_EXPORT_ERROR: i32 = 7;
-const EXIT_IMPORT_ERROR: i32 = 8;
-const EXIT_USER_INPUT: i32 = 9;
+const EXIT_PARSE_ERROR: i32 = 4;
+const EXIT_EXPORT_ERROR: i32 = 5;
+const EXIT_IMPORT_ERROR: i32 = 6;
+const EXIT_USER_INPUT: i32 = 7;
 
 pub fn handle_db_error(err: &NoteraError) -> ! {
     eprintln!("❌ {}", err);
@@ -105,21 +97,10 @@ pub fn handle_fs_error(err: &NoteraError) -> ! {
     exit(EXIT_FS_ERROR);
 }
 
-pub fn handle_config_error(err: &NoteraError) -> ! {
-    eprintln!("❌ {}", err);
-    eprintln!("ℹ️ Please check your configuration file with `notera config`, or run `notera init` to reinitialize the configuration file.");
-    exit(EXIT_CONFIG_ERROR);
-}
-
 pub fn handle_parse_error(err: &NoteraError) -> ! {
     eprintln!("❌ {}", err);
     eprintln!("ℹ️ Please check the format of your input files.");
     exit(EXIT_PARSE_ERROR);
-}
-
-pub fn handle_not_found_error(err: &NoteraError) -> ! {
-    eprintln!("❌ {}", err);
-    exit(EXIT_NOT_FOUND);
 }
 
 pub fn handle_export_error(err: &NoteraError) -> ! {
