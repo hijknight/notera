@@ -21,7 +21,7 @@ pub fn init() -> Result<()> {
     if !status.success() {
         return Err(NoteraError::Other("Config file opened with editor, but no changes were made.".to_string()));
     }
-    let db_conn = crate::storage::init_db()?;
+    let _db_conn = crate::storage::init_db()?;
     println!("✅ Database created at {}\n", crate::storage::get_db_path()?.display());
     println!("✅ notera initialized successfully!");
 
@@ -66,7 +66,7 @@ pub fn clean() -> Result<()> {
     if db_path.exists() {
         match fs::remove_file(&db_path) {
             Ok(_) => println!("✅ Database file deleted: {}", db_path.display()),
-            Err(e) => eprintln!("❌ Failed to delete database file: {}", e),
+            Err(e) => print_warning(&format!("Failed to delete database file: {}", e))
         }
     } else {
         println!("ℹ️ Database file not found. Nothing to clean there.");
@@ -80,7 +80,7 @@ pub fn clean() -> Result<()> {
                 if filename.to_string_lossy().starts_with("notera_") {
                     match fs::remove_file(&path) {
                         Ok(_) => println!("✅ Temporary file deleted: {}", path.display()),
-                        Err(e) => eprintln!("❌ Failed to delete temporary file: {}", e),
+                        Err(e) => print_warning(&format!("Failed to delete temporary file: {}", e))
                     }
                 }
             }
@@ -92,7 +92,7 @@ pub fn clean() -> Result<()> {
     if config_path.exists() {
         match fs::remove_file(&config_path) {
             Ok(_) => println!("✅ Configuration file deleted from {}.", config_path.display()),
-            Err(e) => eprintln!("❌ Failed to delete configuration file: {}", e),
+            Err(e) => print_warning(&format!("Failed to delete configuration file: {}", e))
         }
     } else {
         println!("ℹ️ Configuration file not found. Nothing to delete.");
@@ -113,7 +113,7 @@ pub fn clean() -> Result<()> {
         println!();
         println!("✅ All files in '{}' prefixed with 'notera_' deleted.", temp_dir);
         println!("✅ Notera database deleted");
-        println!("❌ Export folder not deleted per request.");
+        println!("❎ Export folder not deleted per request.");
         println!();
         println!("✅ ✅ ❎ Clean operation completed.");
         return Ok(());
@@ -124,7 +124,7 @@ pub fn clean() -> Result<()> {
     if export_folder_exists {
         match fs::remove_dir_all(&export_path) {
             Ok(_) => println!("✅ All exported files and the export directory deleted: {}", export_path),
-            Err(e) => eprintln!("❌ Failed to delete export files or folder: {}", e),
+            Err(e) => print_warning(&format!("Failed to delete export directory: {}", e))
         }
     } else {
         println!("ℹ️ Export directory not found. Nothing to delete.")
