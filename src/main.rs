@@ -6,6 +6,7 @@ mod error;
 
 use std::process;
 use clap::{CommandFactory, Parser, Subcommand};
+use crate::error::handle_error;
 
 /// Note-Taker CLI App
 #[derive(Parser)]
@@ -76,62 +77,85 @@ fn main() {
     }
 
 
-    match cli.command {
-        Some(Commands::New { title }) => storage::save_note(&title),
+    let result = match cli.command {
+        Some(Commands::New {title}) => storage::save_note(&title),
 
-        Some(Commands::List) => storage::read_notes().iter().for_each(|n| println!("{}", n)),
+        Some(Commands::List) => {
+            match storage::read_notes() {
+                Ok(notes) => {
+                    for note in notes {
+                        println!("{}", note);
+                    }
+                    Ok(())
+                }
+                Err(e) => Err(e),
+            }
+        }
 
-        Some(Commands::Edit { title }) => storage::edit_note(&title),
+        Some(Commands::Edit {title}) => storage::edit_note(&title),
 
-        Some(Commands::Delete { title }) => storage::delete_note(&title),
+        Some(Commands::Delete {title}) => storage::delete_note(&title),
 
         Some(Commands::Clear) => storage::clear_notes(),
 
-
-        Some(Commands::Import { dir, note }) => {
-            if let Some(directory) = dir {
-                storage::import_dir(&directory);
+        Some(Commands::Import {dir, note}) => {
+            if let Some(dir) = dir {
+                storage::import_dir(&dir)
             } else if let Some(args) = note {
                 if args.len() == 2 {
-                    let format = &args[0];
+                    let formats = &args[0];
                     let file_path = &args[1];
-                    let _ = storage::import_note(&storage::init_db(), format, file_path);
+
+                    match storage::init_db() {
+                        Ok(conn) => {
+                            match storage::import_note(&conn, &formats, &file_path) {
+                                Ok(_) => Ok(()),
+                                Err(e) => Err(e),
+                            }
+                        },
+                        Err(e) => Err(e),
+                    }
                 } else {
                     println!("❌ Invalid arguments for --note. Use: `notera import --note <FORMAT> <FILE_PATH>`");
+                    Ok(())
                 }
             } else {
                 println!("❌ No valid import option provided. Use `--dir` or `--note`.");
+                Ok(())
             }
         }
 
         Some(Commands::Export { all, note }) => {
             if let Some(format) = all {
-                storage::export_all(&format);
+                storage::export_all(&format)
             } else if let Some(args) = note {
                 if args.len() == 2 {
                     let format = &args[0];
                     let title = &args[1];
-                    storage::export_note(&format, &title);
+                    storage::export_note(&format, &title)
                 } else {
                     println!("❌ Invalid arguments for --note. Use: `notera export --note <FORMAT> <TITLE>`");
+                    Ok(())
                 }
             } else {
                 println!("❌ No valid export option provided. Use `--all` or `--note`.");
+                Ok(())
             }
-        }
+        },
 
-
-        Some(Commands::Config) => {
-            setup::open_config()
-        }
+        Some(Commands::Config) => setup::open_config(),
 
         Some(Commands::Init) => setup::init(),
 
         Some(Commands::Clean) => setup::clean(),
 
         None => {
-            Cli::command().print_help().expect("Failed to display help")
+            Cli::command().print_help().map_err(|e| e.into())
         },
+    };
+
+    if let Err(error) = result {
+        handle_error(error);
     }
 }
 
