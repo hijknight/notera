@@ -1,10 +1,10 @@
 
-
-
-use std::process::exit;
-use std::fmt;
-use std::io;
-use std::path::PathBuf;
+use std::{
+    process::exit,
+    fmt,
+    io,
+    path::PathBuf,
+};
 // exit codes
 
 // 1 - standard exit
