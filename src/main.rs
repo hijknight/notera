@@ -2,10 +2,10 @@ mod config;
 mod storage;
 mod setup;
 mod error;
-
+mod file_handling;
 
 use std::process;
-use clap::{CommandFactory, Parser, Subcommand};
+use clap::{ CommandFactory, Parser, Subcommand };
 use crate::error::handle_error;
 
 /// Note-Taker CLI App
@@ -25,17 +25,29 @@ enum Commands {
     #[command(about = "create a new note with `notera new <TITLE>`", alias = "n")]
     New { title: String },
 
-    #[command(about = "list all notes with `notera list`", alias = "l")]
-    List,
+    #[command(about = "list all notes with `notera list --all` or a specific notes `notera list --note <TITLE>`", alias = "l")]
+    List {
+        #[arg(short, long, help = "List all notes")]
+        all: bool,
+
+        #[arg(long, help = "List a note with a specific title")]
+        note: Option<String>,
+    },
 
     #[command(about = "edit a specific note with `notera edit <TITLE>`", alias = "e")]
     Edit { title: String },
 
-    #[command(about = "delete a specific note with `notera delete <TITLE>`", alias = "d")]
-    Delete { title: String },
+    #[command(about = "rename a specific note with `notera rename <OLD_TITLE> <NEW_TITLE>`", alias = "r")]
+    Rename { old_title: String, new_title: String },
 
-    #[command(about = "clear all notes with `notera clear`", alias = "c")]
-    Clear,
+    #[command(about = "delete a specific note with `notera delete <TITLE>`", alias = "d")]
+    Delete {
+        #[arg(long, help = "Delete a specific note with `notera delete <TITLE>`", value_name = "TITLE")]
+        note: Option<String>,
+
+        #[arg(long, help = "Delete all notes with `notera delete --all`")]
+        all: bool,
+    },
 
     /// 🗂 Import and Export Commands
     #[command(subcommand_help_heading = "Import and Export Commands")]
@@ -44,17 +56,17 @@ enum Commands {
         #[arg(long, help = "Import all notes in a directory")]
         dir: Option<String>, // dir_path
 
-        #[arg(long, num_args = 2, value_names = ["FORMAT", "TITLE"], help = "Import a specific note file. Provide format (.txt/.md) and file path")]
-        note: Option<Vec<String>>,
+        #[arg(long, value_name = "TITLE", help = "Import a specific note file. Provide format (.txt/.md) and file path")]
+        note: Option<String>,
     },
 
     #[command(about = "export note(s)")]
     Export {
-        #[arg(long, value_name = "FORMAT", help = "Export all notes to a given format. .txt/.md")]
-        all: Option<String>, // format
+        #[arg(long, help = "Export all notes to a given format confugured in config.toml. Available formats: txt, md")]
+        all: bool, // format
 
-        #[arg(long, num_args = 2, value_names = ["FORMAT", "TITLE"], help = "Export a specific note. Provide format (.txt/.md) and note title")]
-        note: Option<Vec<String>>,
+        #[arg(long, value_name = "TITLE", help = "Export a specific note. Provide format (.txt/.md) and note title")]
+        note: Option<String>,
     },
 
     /// Configuration and Setup
@@ -78,45 +90,68 @@ fn main() {
 
 
     let result = match cli.command {
+
         Some(Commands::New {title}) => storage::save_note(&title),
 
-        Some(Commands::List) => {
-            match storage::read_notes() {
-                Ok(notes) => {
-                    for note in notes {
-                        println!("{}", note);
-                    }
-                    Ok(())
+        Some(Commands::List { all, note }) => {
+            if all {
+                match storage::read_notes() {
+                    Ok(notes) => {
+                        println!("{}", notes.join("\n\n"));
+                        Ok(())
+                    },
+                    Err(e) => Err(e),}
+            } else if let Some(note) = note {
+                match storage::read_note(&note) {
+                    Ok(notes) => {
+                        println!("{}", notes.join("\n\n"));
+                        Ok(())
+                    },
+                    Err(e) => Err(e),
                 }
-                Err(e) => Err(e),
+            } else {
+                println!("No valid import option provided. Use `--all` or `--note`.");
+                Ok(())
             }
         }
 
+
         Some(Commands::Edit {title}) => storage::edit_note(&title),
 
-        Some(Commands::Delete {title}) => storage::delete_note(&title),
+        Some(Commands::Rename {old_title, new_title}) => storage::rename_note(&old_title, &new_title),
 
-        Some(Commands::Clear) => storage::clear_notes(),
+        Some(Commands::Delete { note, all}) => {
+            if all {
+                storage::clear_notes()
+            } else if let Some(args) = note {
+                let note_title = &args;
+                storage::delete_note(&note_title)
+            } else {
+                println!("No valid delete option provided. Use `--all` or `--note`.");
+                Ok(())
+            }
+        },
 
         Some(Commands::Import {dir, note}) => {
             if let Some(dir) = dir {
-                storage::import_dir(&dir)
+                file_handling::import_dir(&dir)
             } else if let Some(args) = note {
-                if args.len() == 2 {
-                    let formats = &args[0];
-                    let file_path = &args[1];
+                if args.len() == 1 {
+                    let file_path = &args;
 
                     match storage::init_db() {
                         Ok(conn) => {
-                            match storage::import_note(&conn, &formats, &file_path) {
+                            match file_handling::import_note(&conn, &file_path) {
                                 Ok(_) => Ok(()),
                                 Err(e) => Err(e),
                             }
                         },
                         Err(e) => Err(e),
                     }
+
+
                 } else {
-                    println!("❌ Invalid arguments for --note. Use: `notera import --note <FORMAT> <FILE_PATH>`");
+                    println!("❌ No vald import option provided. Use: `notera import --note <FILE_PATH>`");
                     Ok(())
                 }
             } else {
@@ -126,17 +161,11 @@ fn main() {
         }
 
         Some(Commands::Export { all, note }) => {
-            if let Some(format) = all {
-                storage::export_all(&format)
+            if all {
+                file_handling::export_all()
             } else if let Some(args) = note {
-                if args.len() == 2 {
-                    let format = &args[0];
-                    let title = &args[1];
-                    storage::export_note(&format, &title)
-                } else {
-                    println!("❌ Invalid arguments for --note. Use: `notera export --note <FORMAT> <TITLE>`");
-                    Ok(())
-                }
+                let title = &args;
+                file_handling::export_note(&title)
             } else {
                 println!("❌ No valid export option provided. Use `--all` or `--note`.");
                 Ok(())
