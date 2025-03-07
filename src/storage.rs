@@ -11,6 +11,8 @@ use crate::{
     },
     config::Config
 };
+
+
 pub fn get_db_path() -> Result<PathBuf> {
     let config = Config::load()?;
     let mut path = PathBuf::from(config.note_db_directory);
