@@ -1,5 +1,5 @@
 use std::{env, process::Command, fs, io, path::Path};
-use crate::error::{NoteraError, Result, print_warning} ;
+use crate::error::{ NoteraError, Result, print_warning };
 
 pub fn is_initialized() -> bool {
     let config_path = crate::config::get_config_path();
