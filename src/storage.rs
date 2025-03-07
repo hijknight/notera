@@ -1,11 +1,16 @@
-use rusqlite::{ params, Connection };
+use rusqlite::{params, Connection };
 use std::fs;
-use std::io::Write;
-use std::path::{ PathBuf, Path };
-use crate::config::Config;
+use std::path::{ PathBuf };
 use chrono::Local;
-use crate::error::{print_warning, with_path, NoteraError, Result};
-
+use crate::{
+    error::{
+        print_warning,
+        with_path,
+        NoteraError,
+        Result,
+    },
+    config::Config
+};
 pub fn get_db_path() -> Result<PathBuf> {
     let config = Config::load()?;
     let mut path = PathBuf::from(config.note_db_directory);
@@ -74,7 +79,6 @@ pub fn save_note(title: &str) -> Result<()> {
 }
 
 
-/// Read all existing notes
 pub fn read_notes() -> Result<Vec<String>> {
 
     let conn = init_db()?;
@@ -99,7 +103,30 @@ pub fn read_notes() -> Result<Vec<String>> {
     }
     Ok(notes)
 }
-/// Edit an existing note
+
+pub fn read_note(title: &str) -> Result<Vec<String>> {
+    let conn = init_db()?;
+
+    let mut stmt = conn.prepare("SELECT title, content, timestamp FROM notes WHERE title = ?1")
+        .map_err(|e| NoteraError::Database(e))?;
+
+    let notes_iter = stmt.query_map([title], |row| {
+        let title: String = row.get(0)?;
+        let content: String = row.get(1)?;
+        let timestamp: String = row.get(2)?;
+
+        Ok((title, content, timestamp))
+    }).map_err(|e| NoteraError::Database(e))?;
+
+    let mut notes = Vec::new();
+
+    for note_result in notes_iter {
+        let (title, content, timestamp) = note_result.map_err(|e| NoteraError::Database(e))?;
+        notes.push(format!("📝 Title: {}\n⏳ Created: {}\n\n{}\n", title, timestamp, content));
+    }
+    Ok(notes)
+}
+
 pub fn edit_note(title: &str) -> Result<()> {
     let conn = init_db()?;
     let config = Config::load()?;
@@ -185,7 +212,7 @@ pub fn delete_note(title: &str) -> Result<()> {
     Ok(())
 }
 
-// Clears all notes from db and tmp directory
+
 pub fn clear_notes() -> Result<()> {
     let conn = init_db()?;
 
@@ -229,271 +256,33 @@ pub fn clear_notes() -> Result<()> {
 }
 
 
-pub fn export_all(format: &str) -> Result<()>{
-    let conn = init_db()?;
-    let mut stmt = conn.prepare("SELECT title, content, timestamp FROM notes ORDER BY timestamp DESC")
-        .map_err(|e| NoteraError::Database(e))?;
-    let config = Config::load()?;
-
-    let export_path = &config.export_path;
-
-
-
-    //early check
-    if format != "txt" && format != "md" {
-        print_warning("Unsupported format. Please use txt or md.");
-        return Ok(());
-    }
-
-
-    if !fs::exists(&export_path)? {
-        fs::create_dir_all(&export_path)
-            .map_err(|e| NoteraError::FileSystem(e, None))?;
-    }
-
-    let notes_iter = stmt.query_map([], |row| {
-        Ok((
-            row.get::<_, String>(0)?,
-            row.get::<_, String>(1)?,
-            row.get::<_, String>(2)?,
-        ))
-    }).map_err(|e| NoteraError::Database(e))?;
-
-    let mut notes = Vec::new();
-
-    for note in notes_iter {
-        let (title, content, timestamp) = note?;
-
-        notes.push((title, content, timestamp));
-    }
-
-    if notes.is_empty() {
-        print_warning("No notes found. Nothing to export.");
-        return Ok(());
-    }
-
-    let export_timestamp = Local::now().format("%Y-%m-%d_%H.%M").to_string();
-    let default_filename = format!("notera-export_all-{}.{}", export_timestamp, format);
-    let output_path = format!("{}/{}", export_path, default_filename);
-
-    let mut file = fs::File::create(&output_path)
-        .map_err(|e| NoteraError::Export(format!("Failed to create file: {}", e)))?;
-
-
-    match format {
-        "txt" => {
-            for (title, content, timestamp) in &notes {
-                writeln!(file, "Title: {}\n\nCreated: {}\n-----\n\n{}\n-----------", title, timestamp, content)
-                    .map_err(|e| NoteraError::Export(format!("Failed to write to file: {}", e)))?;
-            }
-        },
-        "md" => {
-            writeln!(file, "# notera markdown export {}\n", export_timestamp)
-                .map_err(|e| NoteraError::Export(format!("Failed to write to file: {}", e)))?;
-            for (title, content, timestamp) in &notes {
-                writeln!(file, "## 📝 {}\n\n#### ⏳ *Created: {}*\n\n{}\n---\n", title, timestamp, content)
-                    .map_err(|e| NoteraError::Export(format!("Failed to write to file: {}", e)))?;
-            }
-        },
-        // catch all pattern to satisfy compiler. will never be run.
-        _ => {
-            print_warning("You are officially a wizard. This could should have been unreachable.");
-            return Ok(());
-        },
-    }
-
-    println!("✅  Notes exported successfully to {}", output_path);
-    Ok(())
-}
-
-pub fn export_note(format: &str, title_query: &str) -> Result<()> {
+pub fn rename_note(old_title_query: &str, new_title: &str) -> Result<()> {
     let conn = init_db()?;
 
-    let mut stmt = conn.prepare("SELECT title, content, timestamp FROM notes WHERE title = ?1").expect("❌ Note not found in database.");
-
-    let config = Config::load()?;
-
-    let export_path = &config.export_path;
-
-    if format != "txt" && format != "md" {
-        print_warning("Unsupported format. Please use txt or md.");
-        return Ok(());
-    }
-
-    if !fs::exists(&export_path)? {
-        fs::create_dir_all(&export_path)
-            .map_err(|e| NoteraError::FileSystem(e, None))?;
-    }
-
-    let notes_iter = stmt.query_map(params![title_query], |row| {
-        Ok((
-            row.get::<_, String>(0)?,
-            row.get::<_, String>(1)?,
-            row.get::<_, String>(2)?,
-        ))
-    }).map_err(|e| NoteraError::Database(e))?;
-
-    let mut notes = Vec::new();
-
-    for note in notes_iter {
-        let (title, content, timestamp) = note?;
-
-        notes.push((title, content, timestamp));
-    }
-
-    let export_timestamp = Local::now().format("%Y-%m-%d_%H.%M").to_string();
-    let default_filename = format!("notera-export_{}-{}.{}", title_query, export_timestamp, format);
-    let output_path = format!("{}/{}", export_path, default_filename);
-
-    let mut file = fs::File::create(&output_path)
-        .map_err(|e| NoteraError::Export(format!("Failed to create file: {}", e)))?;
-
-    match format {
-        "txt" => {
-            for (title, content, timestamp) in &notes {
-                writeln!(file, "Title: {}\n\nCreated: {}\n-----\n\n{}\n-----------", title, timestamp, content)
-                    .map_err(|e| NoteraError::Export(format!("Failed to write to file: {}", e)))?;
-            }
-        }
-        "md" => {
-            writeln!(file, "# notera markdown export {} for note {}\n", export_timestamp, title_query)
-                .map_err(|e| NoteraError::Export(format!("Failed to write to file: {}", e)))?;
-            for (title, content, timestamp) in &notes {
-                writeln!(file, "## 📝 {}\n\n#### ⏳ *Created: {}*\n\n{}\n\n", title, timestamp, content)
-                    .map_err(|e| NoteraError::Export(format!("Failed to write to file: {}", e)))?;
-            }
-        }
-        // the pattern below will never be able to be run, because of the check above.
-        _ => {
-            print_warning("You are officially a wizard. This could should have been unreachable.");
-            return Ok(());
-        }
-    }
-    println!();
-    println!("✅ Note exported successfully to {} of {}", output_path, title_query);
-    Ok(())
-}
-
-pub fn import_note(conn: &Connection, format: &str, file_path: &str) -> Result<bool> {
-
-    if format != "txt" && format != "md" {
-        print_warning("Unsupported format. Please use txt or md.");
-        return Ok(false);
-    }
-
-    let file_path = Path::new(file_path);
-    if !file_path.exists() {
-        print_warning(&format!("File does not exist: {}", file_path.display()));
-        return Ok(false);
-    }
-
-    let content = match fs::read_to_string(file_path) {
-        Ok(content) => content,
-        Err(e) => {
-            println!("Could not read file '{}': {}", file_path.display(), e);
-            return Ok(false);
-        },
-    };
-
-    if content.trim().is_empty() {
-        print_warning(&format!("File is empty: {}", file_path.display()));
-        return Ok(false);
-    }
-
-    let (title, content) = match format {
-        "txt" => {
-            parse_txt(&content)
-
-        }
-        "md" => {
-            parse_md(&content)
-        }
-        // pattern will never be reached due to previous check
-        _ => {
-            print_warning("You are officially a wizard. This could should have been unreachable.");
-            return Ok(false);
-        }
-    };
-
-    let mut stmt = conn.prepare("SELECT COUNT(*) FROM notes WHERE title = ?1")
+    let mut stmt = conn.prepare("SELECT title FROM notes WHERE title LIKE ?")
         .map_err(|e| NoteraError::Database(e))?;
 
-    let count = stmt.query_row(params![title], |row| row.get(0)).unwrap_or(0);
+    let existing_titles: Vec<String> = stmt
+        .query_map([format!("%{}%", old_title_query)],
+        |row| row.get(0))?
+        .collect::<rusqlite::Result<Vec<String>>>()?;
 
-    if count > 0 {
-        print_warning(&format!("Note with title '{}' already exists. Skipping.", title));
-        return Ok(false);
-    }
+    match existing_titles.len() {
+        0 => Err(NoteraError::Other(format!("No notes found with title '{}'", old_title_query))),
+        1 => {
+            let mut stmt = conn.prepare("SELECT COUNT(*) FROM notes WHERE title = ?")?;
 
-    let timestamp = Local::now().format("%Y-%m-%d %H:%M").to_string();
-    conn.execute(
-        "INSERT INTO notes (title, content, timestamp) VALUES (?1, ?2, ?3)",
-        params![title, content, timestamp],
-    ).map_err(|e| NoteraError::Import(format!("Failed to import note into database: {}", e)))?;
+            let count: i32 = stmt.query_row([new_title], |row| row.get(0))?;
 
-
-    println!("✅ Imported note '{}' from '{}' successfully!", title, file_path.display());
-    Ok(true)
-}
-
-
-pub fn import_dir(directory: &str) -> Result<()> {
-    let conn = init_db()?;
-
-    let dir_path = Path::new(directory);
-
-    if !dir_path.exists() || !dir_path.is_dir() {
-        println!("❌ Directory {} does not exist or is empty", dir_path.display());
-        return Ok(());
-    }
-
-    let mut imported_count = 0;
-
-    for entry in fs::read_dir(dir_path).map_err(|e| NoteraError::FileSystem(e, None))? {
-        if let Ok(entry) = entry {
-            let file_path = entry.path();
-            if let Some(ext) = file_path.extension() {
-                if ext == "txt" || ext == "md" {
-                    let file_path_str = file_path.to_str().unwrap();
-                    let format = ext.to_str().unwrap();
-
-                    println!("🗄️ Importing file: {}", file_path_str);
-                    if import_note(&conn, format, file_path_str)? {
-                        imported_count += 1;
-                    }
-                }
+            if count > 0 {
+                return Err(NoteraError::Other(format!("Note with title '{}' already exists", new_title)));
             }
-        }
+
+            conn.execute("UPDATE notes SET title = ? WHERE title = ?", [new_title, &existing_titles[0]])?;
+            println!("✅ Successfully renamed note from '{}' to '{}'", old_title_query, new_title);
+
+            Ok(())
+        },
+        _ => Err(NoteraError::Other(format!("Multiple notes found with title '{}'", old_title_query))),
     }
-
-    println!();
-
-    if imported_count > 0 {
-        println!("✅ Successfully imported {} files", imported_count);
-    } else {
-        print_warning("No files were imported.");
-    }
-
-    Ok(())
-}
-
-fn parse_txt(content: &str) -> (String, String) {
-    let mut lines = content.lines();
-    let title = lines.next().unwrap_or("Untitled").trim().to_string();
-    let content: String = lines.collect::<Vec<&str>>().join("\n").trim().to_string();
-
-    (title, content)
-}
-
-fn parse_md(content: &str) -> (String, String) {
-    let mut lines = content.lines();
-    let title = lines.next().unwrap_or("Untitled").trim();
-
-    let title = title.trim_start_matches('#').trim();
-
-    let title = title.replace(" ", "_");
-
-    let content: String = lines.collect::<Vec<&str>>().join("\n").trim().to_string();
-
-    (title, content)
 }
