@@ -21,16 +21,15 @@ struct Cli {
 #[derive(Subcommand, PartialEq)]
 enum Commands {
     /// 📌 Note-taking commands
-    #[command(subcommand_help_heading = "Note Commands")]
     #[command(about = "create a new note with `notera new <TITLE>`", alias = "n")]
     New { title: String },
 
-    #[command(about = "list all notes with `notera list --all` or a specific notes `notera list --note <TITLE>`", alias = "l")]
-    List {
-        #[arg(short, long, help = "List all notes")]
+    #[command(about = "view all notes with `notera view --all` or a specific notes `notera view --note <TITLE>`", alias = "l")]
+    View {
+        #[arg(short, long, help = "view all notes")]
         all: bool,
 
-        #[arg(long, help = "List a note with a specific title")]
+        #[arg(long, help = "view a note with a specific title")]
         note: Option<String>,
     },
 
@@ -50,7 +49,6 @@ enum Commands {
     },
 
     /// 🗂 Import and Export Commands
-    #[command(subcommand_help_heading = "Import and Export Commands")]
     #[command(about = "import notes")]
     Import {
         #[arg(long, help = "Import all notes in a directory")]
@@ -69,7 +67,7 @@ enum Commands {
         note: Option<String>,
     },
 
-    /// Configuration and Setup
+    /// ⚙️ Configuration and Setup
     #[command(about = "open the notera config file with `notera config`")]
     Config,
 
@@ -93,7 +91,7 @@ fn main() {
 
         Some(Commands::New {title}) => storage::save_note(&title),
 
-        Some(Commands::List { all, note }) => {
+        Some(Commands::View { all, note }) => {
             if all {
                 match storage::read_notes() {
                     Ok(notes) => {
