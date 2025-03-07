@@ -7,11 +7,14 @@ use serde::{ Serialize, Deserialize };
 use toml;
 use dirs;
 use crate::error::{ Result, with_path };
+
+
 #[derive(Serialize, Deserialize)]
 pub struct Config {
     pub editor: String,
     pub note_db_directory: String,
     pub export_path: String,
+    pub export_format: String,
 }
 
 impl Config {
@@ -21,6 +24,7 @@ impl Config {
         if !config_path.exists() {
             let default_config = Config {
                 editor: "vim".to_string(),
+                export_format: "md".to_string(),
                 note_db_directory: format!("{}/.local/share/notera", std::env::var("HOME").unwrap_or_else(|_| ".".to_string())),
                 export_path: format!("{}/Documents/notera_exports", std::env::var("HOME").unwrap_or_else(|_| ".".to_string())),
             };
