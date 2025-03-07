@@ -51,29 +51,53 @@ This command will set up the required configurations (including storage paths) a
 To check the available commands, run:
 
 ```bash
-notera help
+notera --help
 ```
 
 
 ## 💻 Supported CLI Actions
-- Take notes:
-  - `notera new <TITLE>`: Add a new note.
-  - `notera list`: List all notes with their titles, timestamps, and content snippets.
-  - `notera view <TITLE>`: View the full content of a specific note (*automatically opens in CLI-defined text editor*).
-  - `notera edit <TITLE>`: Edit an existing note.
-  - `notera delete <TITLE>`: Delete a specific note.
-  - `notera clear`: Permanently delete all notes.
-  - `notera export <FORMAT>`: Export all notes to `.txt` or `.md` files.
-      - Example: `notera export txt` will export notes into a txt file into specified directory configured with `notera config`
-  - `notera import <FORMAT> <FILE_PATH>`: Import a note with a specified format (for in-house formatting) at a specified location.
-  - `notera import-dir <FORMAT> <FILE_PATH>`: Coming soon
+- 📝 Take notes:
+  - `new <TITLE>`: Add a new note.
+  
+  - `view <FLAGS>`: View all or specific notes
+    - Options: 
+      - `--all`: List all notes in database
+      - `--note <TITLE>`: View the title, content and timestamp of a specific note
+
+  - `edit <TITLE>`: Edit an existing note.
+  
+  - `delete <FLAGS>`: Delete all or a specific note
+    - Options:
+      - `--note <TITLE>`: Delete a specific note
+      - `--all`: Delete all notes
+
+- 🗂️ Exports and Imports:
+  - `export <FLAGS>`
+    - Options:
+      - `--all`: Export all notes into a single `.md` or `.txt` file
+      - `--note`: Export a specific note into a `.md` or `.txt` file
+  
+  - `import <FLAGS>`
+    - Options:
+      - `--dir <DIR_PATH>`: Import all qualifying notes of a directory into notera
+      - `--note <FILE_PATH>`: Import a specific note into notera
 
 - Setup:
-  - `notera config`: Open and modify the app's configuration settings.
-  - `notera init`: Initialize `notera` for first-time use, setting up configurations and database storage.
-  - `notera help`: Show the default help message.
+  - `config`: Open and modify the app's configuration settings.
+    - Default config created after running `notera init`:
+        ```toml
+        editor = "nvim"
+        note_db_directory = "/User/{user}/.local/share/notera"
+        export_path = "/User/{user}/Documents/notera_exports"
+        export_format = "md"
+        ```
+  
+  - `init`: Initialize `notera` for first-time use, setting up configurations and database storage.
+
+  - `help`: Show the default help message.
+
 - DANGER ZONE:
-  - `notera clean`: Delete all temporary and persistent `notera` data (export files, , including the SQLite database and temporary files.
+  - `clean`: Delete all temporary and persistent `notera` data (export files, , including the SQLite database and temporary files.
 
 
 ## 🛠 Configuration
@@ -86,8 +110,9 @@ notera config
 
 Configuration options include the following:
 - **Editor used**: The text editor used to create and edit notes (e.g., Vim).
-- **Temporary Notes Directory**: Directory where temporary files are stored.
+- **Temporary Notes Directory**: Directory where temporary files are stored. (Should remain as default)
 - **Export Path**: The directory location where exported files are saved.
+- **Export Format**: The format in which exports are saved.
 
 ## 👷 Built With
 
@@ -99,7 +124,7 @@ Configuration options include the following:
 
 ## 🔮 Future Plans
 
-- 📂 Import notes as directories with `notera import-dir <FORMAT> <FILE_PATH>`
+- Better help message and optimizations for first release
 - Listening with AI
 
 ## 🪪 License
