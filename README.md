@@ -93,7 +93,7 @@ notera --help
 
         # Possible values:
 
-          # Editor: vim, nano, emacs, nvim
+          # Editor: vim, nano, emacs, nvim, etc. (must be cli-based editor)
 
           # Note db directory: Should be kept default unless you know what you're doing.
 
