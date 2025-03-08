@@ -98,12 +98,11 @@ pub fn clean() -> Result<()> {
         println!("ℹ️ Configuration file not found. Nothing to delete.");
     }
 
-    // delete exports
-
     // optionally delete export folder.
 
     let mut export_deletion_confirmation = String::new();
     println!("🤷 Would you like to delete your notera export folder? (yes/no)");
+    println!("ℹ️ Current export folder: {}", export_path);
 
     io::stdin()
         .read_line(&mut export_deletion_confirmation)
