@@ -73,7 +73,7 @@ pub fn clean() -> Result<()> {
     }
 
     // Remove all temporary files
-    if let Ok(entries) = fs::read_dir(&temp_dir) {
+    if let Ok(entries) = fs::read_dir(temp_dir) {
         for entry in entries.flatten() {
             let path = entry.path();
             if let Some(filename) = path.file_name() {
