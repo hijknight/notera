@@ -6,7 +6,7 @@ authors = ["Harrison Knight <hijknight@icloud.com>"]
 description = "notera is an open source minimal note taking tool"
 license = "MIT"
 readme = "README.md"
-repository = "https://github.com/hijknight/note-taker.git"
+repository = "https://github.com/hijknight/notera.git"
 
 [[bin]]
 name = "notera"
