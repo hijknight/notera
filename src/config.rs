@@ -24,12 +24,19 @@ impl Config {
         if !config_path.exists() {
             let default_config = Config {
                 editor: "vim".to_string(),
-                export_format: "md".to_string(),
                 note_db_directory: format!("{}/.local/share/notera", std::env::var("HOME").unwrap_or_else(|_| ".".to_string())),
-                export_path: format!("{}/Documents/notera_exports", std::env::var("HOME").unwrap_or_else(|_| ".".to_string())),
+                export_path: format!("{}/Documents/notera/exports", std::env::var("HOME").unwrap_or_else(|_| ".".to_string())),
+                export_format: "md".to_string(),
             };
 
-            let toml_content = toml::to_string(&default_config)?;
+            let mut toml_content = toml::to_string(&default_config)?;
+            toml_content.push_str(
+                "\n# Possible values:\n
+    # Editor: vim, nano, emacs, nvim\n
+    # Note db directory: Should be kept default unless you know what you're doing.\n
+    # Export path: Feel free to change, just make sure valid path.\n
+    # IMPORTANT: Choose an export format. 'md' or 'txt'. md tends to be better for exports"
+            );
 
             fs::create_dir_all(config_path.parent().unwrap())
                 .map_err(|e| with_path(e, config_path.parent().unwrap().to_path_buf()))?;
