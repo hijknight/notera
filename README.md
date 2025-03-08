@@ -23,7 +23,7 @@ A powerful and lightweight CLI-based note-taking app built with [Rust](https://w
    ```
 2. Build **notera**:
    ```bash
-   cd notera && cargo build --release
+   cd notera && cargo b -r
    ```
 3. Add the `notera` command to your system PATH:
 
