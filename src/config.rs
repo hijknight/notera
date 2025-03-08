@@ -4,8 +4,7 @@ use std::{
     path::PathBuf,
 };
 use serde::{ Serialize, Deserialize };
-use toml;
-use dirs;
+
 use crate::error::{ Result, with_path };
 
 
