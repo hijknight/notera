@@ -88,7 +88,7 @@ fn main() {
 
     let result = match &cli.command {
 
-        Some(Commands::New {title}) => storage::save_note(&title),
+        Some(Commands::New {title}) => storage::save_note(title),
 
         Some(Commands::View { all, note }) => {
             if *all {
@@ -99,7 +99,7 @@ fn main() {
                     },
                     Err(e) => Err(e),}
             } else if let Some(note) = note {
-                match storage::read_note(&note) {
+                match storage::read_note(note) {
                     Ok(notes) => {
                         println!("{}", notes.join("\n\n"));
                         Ok(())
@@ -113,16 +113,16 @@ fn main() {
         }
 
 
-        Some(Commands::Edit {title}) => storage::edit_note(&title),
+        Some(Commands::Edit {title}) => storage::edit_note(title),
 
-        Some(Commands::Rename {old_title, new_title}) => storage::rename_note(&old_title, &new_title),
+        Some(Commands::Rename {old_title, new_title}) => storage::rename_note(old_title, new_title),
 
         Some(Commands::Delete { note, all}) => {
             if *all {
                 storage::clear_notes()
             } else if let Some(args) = note {
                 let note_title = &args;
-                storage::delete_note(&note_title)
+                storage::delete_note(note_title)
             } else {
                 println!("No valid delete option provided. Use `--all` or `--note`.");
                 Ok(())
@@ -131,14 +131,14 @@ fn main() {
 
         Some(Commands::Import {dir, note}) => {
             if let Some(dir) = dir {
-                file_handling::import_dir(&dir)
+                file_handling::import_dir(dir)
             } else if let Some(args) = note {
                 if args.len() == 1 {
                     let file_path = &args;
 
                     match storage::init_db() {
                         Ok(conn) => {
-                            match file_handling::import_note(&conn, &file_path) {
+                            match file_handling::import_note(&conn, file_path) {
                                 Ok(_) => Ok(()),
                                 Err(e) => Err(e),
                             }
@@ -162,7 +162,7 @@ fn main() {
                 file_handling::export_all()
             } else if let Some(args) = note {
                 let title = &args;
-                file_handling::export_note(&title)
+                file_handling::export_note(title)
             } else {
                 println!("❌ No valid export option provided. Use `--all` or `--note`.");
                 Ok(())
