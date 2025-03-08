@@ -80,7 +80,7 @@ pub fn export_all() -> crate::error::Result<()> {
         },
         // catch all pattern to satisfy compiler. will never be run.
         _ => {
-            print_warning("You are officially a wizard. This could should have been unreachable.");
+            print_warning("You are officially a wizard. This code should have been unreachable.");
             return Ok(());
         },
     }
@@ -148,7 +148,7 @@ pub fn export_note(title_query: &str) -> crate::error::Result<()> {
         }
         // the pattern below will never be able to be run, because of the check above.
         _ => {
-            print_warning("You are officially a wizard. This could should have been unreachable.");
+            print_warning("You are officially a wizard. This code should have been unreachable.");
             return Ok(());
         }
     }
@@ -191,7 +191,7 @@ pub fn import_note(conn: &Connection, file_path: &str) -> crate::error::Result<b
         }
         // pattern will never be reached due to previous check
         _ => {
-            print_warning("You are officially a wizard. This could should have been unreachable.");
+            print_warning("You are officially a wizard. This code should have been unreachable.");
             return Ok(false);
         }
     };
