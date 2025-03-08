@@ -90,6 +90,16 @@ notera --help
         note_db_directory = "/User/{user}/.local/share/notera"
         export_path = "/User/{user}/Documents/notera_exports"
         export_format = "md"
+
+        # Possible values:
+
+          # Editor: vim, nano, emacs, nvim
+
+          # Note db directory: Should be kept default unless you know what you're doing.
+
+          # Export path: Feel free to change, just make sure valid path.
+
+          # IMPORTANT: Choose an export format. 'md' or 'txt'. md tends to be better for exports
         ```
   
   - `init`: Initialize `notera` for first-time use, setting up configurations and database storage.
