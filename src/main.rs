@@ -20,7 +20,7 @@ struct Cli {
 
 #[derive(Subcommand, PartialEq)]
 enum Commands {
-    /// 📌 Note-taking commands
+    /// Note-taking commands
     #[command(about = "create a new note with `notera new <TITLE>`", alias = "n")]
     New { title: String },
 
@@ -41,10 +41,10 @@ enum Commands {
 
     #[command(about = "delete a specific note with `notera delete <TITLE>`", alias = "d")]
     Delete {
-        #[arg(long, help = "Delete a specific note with `notera delete <TITLE>`", value_name = "TITLE")]
+        #[arg(short, long, help = "Delete a specific note with `notera delete <TITLE>`", value_name = "TITLE", alias = "d")]
         note: Option<String>,
 
-        #[arg(long, help = "Delete all notes with `notera delete --all`")]
+        #[arg(short, long, help = "Delete all notes with `notera delete --all`")]
         all: bool,
     },
 
@@ -87,12 +87,12 @@ fn main() {
     }
 
 
-    let result = match cli.command {
+    let result = match &cli.command {
 
         Some(Commands::New {title}) => storage::save_note(&title),
 
         Some(Commands::View { all, note }) => {
-            if all {
+            if *all {
                 match storage::read_notes() {
                     Ok(notes) => {
                         println!("{}", notes.join("\n\n"));
@@ -119,7 +119,7 @@ fn main() {
         Some(Commands::Rename {old_title, new_title}) => storage::rename_note(&old_title, &new_title),
 
         Some(Commands::Delete { note, all}) => {
-            if all {
+            if *all {
                 storage::clear_notes()
             } else if let Some(args) = note {
                 let note_title = &args;
@@ -159,7 +159,7 @@ fn main() {
         }
 
         Some(Commands::Export { all, note }) => {
-            if all {
+            if *all {
                 file_handling::export_all()
             } else if let Some(args) = note {
                 let title = &args;
@@ -182,7 +182,7 @@ fn main() {
     };
 
     if let Err(error) = result {
-        handle_error(error);
+        handle_error(&error);
     }
 }
 
