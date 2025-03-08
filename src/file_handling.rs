@@ -29,8 +29,8 @@ pub fn export_all() -> crate::error::Result<()> {
     }
 
 
-    if !fs::exists(&export_path)? {
-        fs::create_dir_all(&export_path)
+    if !fs::exists(export_path)? {
+        fs::create_dir_all(export_path)
             .map_err(|e| NoteraError::FileSystem(e, None))?;
     }
 
@@ -103,8 +103,8 @@ pub fn export_note(title_query: &str) -> crate::error::Result<()> {
         return Ok(());
     }
 
-    if !fs::exists(&export_path)? {
-        fs::create_dir_all(&export_path)
+    if !fs::exists(export_path)? {
+        fs::create_dir_all(export_path)
             .map_err(|e| NoteraError::FileSystem(e, None))?;
     }
 
