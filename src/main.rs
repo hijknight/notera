@@ -6,7 +6,6 @@ mod file_handling;
 
 use std::process;
 use clap::{ CommandFactory, Parser, Subcommand };
-use crate::error::handle_error;
 
 /// Note-Taker CLI App
 #[derive(Parser)]
@@ -51,7 +50,7 @@ enum Commands {
     /// 🗂 Import and Export Commands
     #[command(about = "import notes")]
     Import {
-        #[arg(long, help = "Import all notes in a directory")]
+        #[arg(short, long, help = "Import all notes in a directory")]
         dir: Option<String>, // dir_path
 
         #[arg(long, value_name = "TITLE", help = "Import a specific note file. Provide format (.txt/.md) and file path")]
@@ -60,10 +59,10 @@ enum Commands {
 
     #[command(about = "export note(s)")]
     Export {
-        #[arg(long, help = "Export all notes to a given format confugured in config.toml. Available formats: txt, md")]
+        #[arg(short, long, help = "Export all notes to a given format confugured in config.toml. Available formats: txt, md")]
         all: bool, // format
 
-        #[arg(long, value_name = "TITLE", help = "Export a specific note. Provide format (.txt/.md) and note title")]
+        #[arg(short, long, value_name = "TITLE", help = "Export a specific note. Provide format (.txt/.md) and note title")]
         note: Option<String>,
     },
 
@@ -182,7 +181,7 @@ fn main() {
     };
 
     if let Err(error) = result {
-        handle_error(&error);
+        error::handle_error(&error);
     }
 }
 
