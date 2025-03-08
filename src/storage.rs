@@ -48,7 +48,7 @@ pub fn save_note(title: &str) -> Result<()> {
     let temp_file_path = format!("/tmp/notera_{}.md", title.replace(" ", "_"));
 
     // open temp file
-    let status = std::process::Command::new(&editor)
+    let status = std::process::Command::new(editor)
         .arg(&temp_file_path)
         .status()
         .map_err(|e| NoteraError::Other(format!("Failed to open editor: {}", e)))?;
@@ -158,7 +158,7 @@ pub fn edit_note(title: &str) -> Result<()> {
     fs::write(&temp_file_path, &content)
         .map_err(|e| with_path(e, PathBuf::from(&temp_file_path)))?;
 
-    let status = std::process::Command::new(&editor)
+    let status = std::process::Command::new(editor)
         .arg(&temp_file_path)
         .status()
         .map_err(|e| NoteraError::Other(format!("Failed to open editor: {}", e)))?;
@@ -244,7 +244,7 @@ pub fn clear_notes() -> Result<()> {
         for entry in entries.flatten() {
             if let Some(file_name) = entry.file_name().to_str() {
                 if file_name.starts_with("notera_") {
-                    let _ = fs::remove_file(entry.path()).unwrap_or_else(|err| {
+                    fs::remove_file(entry.path()).unwrap_or_else(|err| {
                         println!("❌ Failed to delete tmp file: {}", err);
                         println!("ℹ️ Normally, this happens because the file was imported, so no file was created in the /tmp directory.")
                     });
