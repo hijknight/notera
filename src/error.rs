@@ -66,13 +66,13 @@ pub type Result<T> = std::result::Result<T, NoteraError>;
 
 pub fn handle_error(err: &NoteraError) -> ! {
     match err {
-        NoteraError::Database(_) => handle_db_error(&err),
-        NoteraError::FileSystem(_, _) => handle_fs_error(&err),
-        NoteraError::Parse(_) => handle_parse_error(&err),
-        NoteraError::Export(_) => handle_export_error(&err),
-        NoteraError::Import(_) => handle_import_error(&err),
-        NoteraError::UserInput(_) => handle_user_input_error(&err),
-        NoteraError::Other(_) => handle_other_error(&err),
+        NoteraError::Database(_) => handle_db_error(err),
+        NoteraError::FileSystem(_, _) => handle_fs_error(err),
+        NoteraError::Parse(_) => handle_parse_error(err),
+        NoteraError::Export(_) => handle_export_error(err),
+        NoteraError::Import(_) => handle_import_error(err),
+        NoteraError::UserInput(_) => handle_user_input_error(err),
+        NoteraError::Other(_) => handle_other_error(err),
     }
 }
 
