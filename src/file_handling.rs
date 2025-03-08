@@ -260,6 +260,8 @@ pub fn import_dir(directory: &str) -> crate::error::Result<()> {
 fn parse_txt(content: &str) -> (String, String) {
     let mut lines = content.lines();
     let title = lines.next().unwrap_or("Untitled").trim().to_string();
+
+    let title = title.replace(" ", "_");
     let content: String = lines.collect::<Vec<&str>>().join("\n").trim().to_string();
 
     (title, content)
