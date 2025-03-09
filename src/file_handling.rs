@@ -99,7 +99,7 @@ pub fn export_note(title_query: &str) -> crate::error::Result<()> {
     let export_path = &config.export_path;
 
     if format != "txt" && format != "md" {
-        print_warning("Unsupported format. Please use txt or md.");
+        print_warning("Unsupported format. Please use txt or md. be sure to check your config file with `notera config`.");
         return Ok(());
     }
 
