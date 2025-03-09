@@ -200,7 +200,7 @@ enum Commands {
         #[arg(short, long, help = "Import all notes in a directory")]
         dir: Option<String>, // dir_path
 
-        #[arg(long, value_name = "TITLE", help = "Import a specific note file. Provide format (.txt/.md) and file path")]
+        #[arg(short, long, value_name = "FILE_PATH", help = "Import a specific note file. file path")]
         note: Option<String>,
     },
 
@@ -277,26 +277,15 @@ fn main() {
         },
 
         Some(Commands::Import {dir, note}) => {
-            if let Some(dir) = dir {
-                file_handling::import_dir(dir)
-            } else if let Some(args) = note {
-                if args.len() == 1 {
-                    let file_path = &args;
-
-                    match storage::init_db() {
-                        Ok(conn) => {
-                            match file_handling::import_note(&conn, file_path) {
-                                Ok(_) => Ok(()),
-                                Err(e) => Err(e),
-                            }
-                        },
-                        Err(e) => Err(e),
-                    }
-
-
-                } else {
-                    println!("❌ No vald import option provided. Use: `notera import --note <FILE_PATH>`");
-                    Ok(())
+            if let Some(directory_given) = dir {
+                file_handling::import_dir(directory_given)
+            } else if let Some(note_file_path) = note {
+                match storage::init_db() {
+                    Ok(conn) => {
+                        file_handling::import_note(&conn, note_file_path).unwrap();
+                        Ok(())
+                    },
+                    Err(e) => Err(e),
                 }
             } else {
                 println!("❌ No valid import option provided. Use `--dir` or `--note`.");
