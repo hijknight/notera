@@ -1,5 +1,9 @@
 /*!
-# notera 📝
+# `notera` 📝
+![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/hijknight/notera/rust.yml)
+![Crates.io Version](https://img.shields.io/crates/v/notera)
+![GitHub License](https://img.shields.io/github/license/hijknight/notera)
+
 
 A powerful and lightweight CLI-based note-taking app built with [Rust](https://www.rust-lang.org/).
 
@@ -16,26 +20,8 @@ A powerful and lightweight CLI-based note-taking app built with [Rust](https://w
 
 ## 📦 Installation
 
-### Option 1: Clone Repository
-1. Clone the repository:
-   ```bash
-   git clone https://github.com/hijknight/notera.git
-   ```
-2. Build **notera**:
-   ```bash
-   cd notera && cargo b -r
-   ```
-3. Add the `notera` command to your system PATH:
+Please see [INSTALL.md](https://github.com/hijknight/notera/blob/master/INSTALL.md) for installation instructions.
 
-   **macOS/Linux**:
-   ```bash
-   sudo mv target/release/notera /usr/local/bin
-   ```
-
-   **Windows**:
-   ```bash
-   // Coming Soon 🔜
-   ```
 
 ## 🏃‍♂️ Quick Start
 
@@ -141,7 +127,6 @@ Configuration options include the following:
 
 This project is open-source and available under the MIT License.
 
-
 */
 
 
@@ -197,16 +182,16 @@ enum Commands {
     /// 🗂 Import and Export Commands
     #[command(about = "import notes")]
     Import {
-        #[arg(short, long, help = "Import all notes in a directory")]
+        #[arg(short, long, help = "Import all notes in a directory: <DIR_PATH>")]
         dir: Option<String>, // dir_path
 
-        #[arg(short, long, value_name = "FILE_PATH", help = "Import a specific note file. file path")]
+        #[arg(short, long, value_name = "FILE_PATH", help = "Import a specific note file. Given a file path")]
         note: Option<String>,
     },
 
     #[command(about = "export note(s)")]
     Export {
-        #[arg(short, long, help = "Export all notes to a given format confugured in config.toml. Available formats: txt, md")]
+        #[arg(short, long, help = "Export all notes to a given format configured in config.toml. Available formats: txt, md")]
         all: bool, // format
 
         #[arg(short, long, value_name = "TITLE", help = "Export a specific note. Provide format (.txt/.md) and note title")]
