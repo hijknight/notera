@@ -1,4 +1,4 @@
-# Install `notera`
+# Install instructions
 
 ## Prequisites
 
