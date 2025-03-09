@@ -1,4 +1,4 @@
-# notera 📝
+# `notera` 📝
 ![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/hijknight/notera/rust.yml)
 
 A powerful and lightweight CLI-based note-taking app built with [Rust](https://www.rust-lang.org/).
@@ -16,26 +16,8 @@ A powerful and lightweight CLI-based note-taking app built with [Rust](https://w
 
 ## 📦 Installation
 
-### Option 1: Clone Repository
-1. Clone the repository:
-   ```bash
-   git clone https://github.com/hijknight/notera.git
-   ```
-2. Build **notera**:
-   ```bash
-   cd notera && cargo b -r
-   ```
-3. Add the `notera` command to your system PATH:
+Please see [INSTALL.md](https://github.com/hijknight/notera/blob/master/INSTALL.md) for installation instructions.
 
-   **macOS/Linux**:
-   ```bash
-   sudo mv target/release/notera /usr/local/bin
-   ```
-
-   **Windows**:
-   ```bash
-   // Coming Soon 🔜
-   ```
 
 ## 🏃‍♂️ Quick Start
 
