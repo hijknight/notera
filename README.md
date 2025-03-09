@@ -1,5 +1,8 @@
 # `notera` 📝
 ![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/hijknight/notera/rust.yml)
+![Crates.io Version](https://img.shields.io/crates/v/notera)
+![GitHub License](https://img.shields.io/github/license/hijknight/notera)
+
 
 A powerful and lightweight CLI-based note-taking app built with [Rust](https://www.rust-lang.org/).
 
