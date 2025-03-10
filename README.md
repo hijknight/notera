@@ -105,7 +105,7 @@ notera config
 
 Configuration options include the following:
 - **Editor used**: The text editor used to create and edit notes (e.g., Vim).
-- **Temporary Notes Directory**: Directory where temporary files are stored. (Should remain as default)
+- **Database Directory**: Directory where the database is stored. (Should remain as default)
 - **Export Path**: The directory location where exported files are saved.
 - **Export Format**: The format in which exports are saved.
 
