@@ -253,7 +253,7 @@ fn main() {
             if *all {
                 storage::clear_notes()
             } else if let Some(args) = note {
-                let note_title = &args;
+                let note_title = args;
                 storage::delete_note(note_title)
             } else {
                 println!("No valid delete option provided. Use `--all` or `--note`.");
@@ -282,7 +282,7 @@ fn main() {
             if *all {
                 file_handling::export_all()
             } else if let Some(args) = note {
-                let title = &args;
+                let title = args;
                 file_handling::export_note(title)
             } else {
                 println!("❌ No valid export option provided. Use `--all` or `--note`.");
