@@ -135,6 +135,8 @@ mod storage;
 mod setup;
 mod error;
 mod file_handling;
+mod whisper;
+mod ai;
 
 use std::process;
 use clap::{ CommandFactory, Parser, Subcommand };
