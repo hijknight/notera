@@ -74,7 +74,7 @@ pub fn export_all() -> crate::error::Result<()> {
             writeln!(file, "# notera markdown export {}\n", export_timestamp)
                 .map_err(|e| NoteraError::Export(format!("Failed to write to file: {}", e)))?;
             for (title, content, timestamp) in &notes {
-                writeln!(file, "## 📝 {}\n\n#### ⏳ *Created: {}*\n\n{}\n---\n", title, timestamp, content)
+                writeln!(file, "## 📝 {}\n\n#### ⏳ *Created: {}*\n\n{}\n\n---\n", title, timestamp, content)
                     .map_err(|e| NoteraError::Export(format!("Failed to write to file: {}", e)))?;
             }
         },
