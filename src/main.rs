@@ -137,15 +137,15 @@ mod error;
 mod file_handling;
 mod ai;
 
+
 use std::process;
 use clap::{ CommandFactory, Parser, Subcommand };
-
 
 /// Note-Taker CLI App
 #[derive(Parser)]
 #[command(name = "notera")]
-#[command(version = "0.1.0.beta.0")]
-#[command(about = "A simple CLI-based note-taking app", long_about = None)]
+#[command(version = "0.1.0.alpha.2")]
+#[command(about = "A simple CLI-based note-taking app.", long_about = None)]
 struct Cli {
     #[command(subcommand)]
     command: Option<Commands>,
@@ -193,23 +193,23 @@ enum Commands {
 
     #[command(about = "export note(s)")]
     Export {
-        #[arg(short, long, help = "Export all notes to a given format configured in config.toml. Available formats: txt, md")]
+        #[arg(short, long, help = "Export all notes to a given format configured in config. Available formats: txt, md")]
         all: bool, // format
 
         #[arg(short, long, value_name = "TITLE", help = "Export a specific note. Provide format (.txt/.md) and note title")]
         note: Option<String>,
     },
 
-    #[command(about = "transcribe audio file with openai's whisper")]
+    #[command(about = "transcribe an audio file with openai's whisper")]
     Transcribe {
-        #[arg(short, long, value_name = "AUDIO_FILE_PATH", help = "transcribe a given audio file")]
-        audio_path: Option<String>,
+        #[arg(short, long, value_name = "AUDIO_FILE_PATH", help = "transcribe a given audio file (.mp3)")]
+        audio: Option<String>,
     },
 
     #[command(about = "summarize a given text file or note with ai")]
     Summarize {
-        #[arg(short, long, value_name = "TEXT_FILE", help = "summarize a text file (.txt, .md)")]
-        text_file: Option<String>,
+        #[arg(short, long, value_name = "file", help = "summarize a text file (.txt, .md)")]
+        file: Option<String>,
         #[arg(short, long, value_name = "TITLE", help = "summarize a notera note given a title")]
         note: Option<String>,
     },
@@ -308,13 +308,15 @@ async fn main() {
             }
         },
 
-        Some(Commands::Transcribe { audio_path }) => {
-            if let Some(audio_path) = audio_path {
-                let transcription_result = ai::transcribe_audio(audio_path).await;
+        Some(Commands::Transcribe { audio }) => {
+            if let Some(audio) = audio {
+                let transcription_result = ai::transcribe_audio(audio).await;
 
                 match transcription_result {
-                    Ok(transcription) => {
-                        println!("Transcription: {}", transcription);
+                    Ok(_) => {
+                        if let Ok(_) = file_handling::export_transcript(&transcription_result.unwrap()) {
+                            println!("✅ Transcription exported to {}/transcripts", config::Config::load().unwrap().notera_files_path);
+                        }
                     }
                     Err(e) => {
                         println!("Error: {}", e);
@@ -325,12 +327,14 @@ async fn main() {
             Ok(())
         }
 
-        Some(Commands::Summarize { text_file, note }) => {
-            if let Some(text_file) = text_file {
-                let summary_result = ai::from_text_file(text_file).await;
+        Some(Commands::Summarize { file, note }) => {
+            if let Some(file) = file {
+                let summary_result = ai::from_text_file(file).await;
                 match summary_result {
-                    Ok(summary) => {
-                        println!("AI's summary of given text file:\n\n{}", summary);
+                    Ok(_) => {
+                        if let Ok(_) = file_handling::export_summary(&summary_result.unwrap()) {
+                            println!("✅ Summary exported to {}/summaries", config::Config::load().unwrap().notera_files_path);
+                        }
                     },
                     Err(e) => {
                         println!("Error: {}", e);
@@ -343,8 +347,10 @@ async fn main() {
                 let summary_result = ai::from_note(note).await;
 
                 match summary_result {
-                    Ok(summary) => {
-                        println!("AI's summary of given note {}:\n\n{}", note, summary);
+                    Ok(_) => {
+                        if let Ok(_) = file_handling::export_summary(&summary_result.unwrap()) {
+                            println!("✅ Summary exported to {}/summaries", config::Config::load().unwrap().notera_files_path);
+                        }
                     },
                     Err(e) => {
                         println!("Error: {}", e);
