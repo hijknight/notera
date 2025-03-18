@@ -135,7 +135,6 @@ mod storage;
 mod setup;
 mod error;
 mod file_handling;
-mod whisper;
 mod ai;
 
 use std::process;
@@ -205,6 +204,14 @@ enum Commands {
     Transcribe {
         #[arg(short, long, value_name = "AUDIO_FILE_PATH", help = "transcribe a given audio file")]
         audio_path: Option<String>,
+    },
+
+    #[command(about = "summarize a given text file or note with ai")]
+    Summarize {
+        #[arg(short, long, value_name = "TEXT_FILE", help = "summarize a text file (.txt, .md)")]
+        text_file: Option<String>,
+        #[arg(short, long, value_name = "TITLE", help = "summarize a notera note given a title")]
+        note: Option<String>,
     },
 
     /// ⚙️ Configuration and Setup
@@ -303,7 +310,7 @@ async fn main() {
 
         Some(Commands::Transcribe { audio_path }) => {
             if let Some(audio_path) = audio_path {
-                let transcription_result = whisper::transcribe_audio(audio_path).await;
+                let transcription_result = ai::transcribe_audio(audio_path).await;
 
                 match transcription_result {
                     Ok(transcription) => {
@@ -316,6 +323,39 @@ async fn main() {
             }
 
             Ok(())
+        }
+
+        Some(Commands::Summarize { text_file, note }) => {
+            if let Some(text_file) = text_file {
+                let summary_result = ai::from_text_file(text_file).await;
+                match summary_result {
+                    Ok(summary) => {
+                        println!("AI's summary of given text file:\n\n{}", summary);
+                    },
+                    Err(e) => {
+                        println!("Error: {}", e);
+                    }
+                }
+
+                Ok(())
+
+            } else if let Some(note) = note {
+                let summary_result = ai::from_note(note).await;
+
+                match summary_result {
+                    Ok(summary) => {
+                        println!("AI's summary of given note {}:\n\n{}", note, summary);
+                    },
+                    Err(e) => {
+                        println!("Error: {}", e);
+                    }
+                }
+
+                Ok(())
+            } else {
+                println!("No valid import option provided. Use `--text-file` or `--note`.");
+                Ok(())
+            }
         }
 
         Some(Commands::Config) => setup::open_config(),
