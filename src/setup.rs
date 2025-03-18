@@ -47,10 +47,10 @@ pub fn open_config() -> Result<()> {
 pub fn clean() -> Result<()> {
     let db_path = crate::storage::get_db_path()?;
     let config_path = crate::config::get_config_path();
-    let export_path = crate::config::Config::load()?.export_path;
+    let notera_files = crate::config::Config::load()?.notera_files_path;
     let temp_dir = "/tmp/"; // Temporary directory path
 
-    println!("⚠️ WARNING: This will delete the notera database, temporary files, config file, and optionally the notera_export folder.\n\nType 'yes' to confirm:");
+    println!("⚠️ WARNING: This will delete the notera database, temporary files, config file, and optionally the notera files folder.\n\nType 'yes' to confirm:");
     let mut confirmation = String::new();
 
     io::stdin()
@@ -102,7 +102,7 @@ pub fn clean() -> Result<()> {
 
     let mut export_deletion_confirmation = String::new();
     println!("🤷 Would you like to delete your notera export folder? (yes/no)");
-    println!("ℹ️ Current export folder: {}", export_path);
+    println!("ℹ️ Current notera files folder: {}", notera_files);
 
     io::stdin()
         .read_line(&mut export_deletion_confirmation)
@@ -118,11 +118,11 @@ pub fn clean() -> Result<()> {
         return Ok(());
     }
     // if user says yes, delete all files
-    let export_folder_exists: bool = Path::new(&export_path).exists();
+    let export_folder_exists: bool = Path::new(&notera_files).exists();
 
     if export_folder_exists {
-        match fs::remove_dir_all(&export_path) {
-            Ok(_) => println!("✅ All exported files and the export directory deleted: {}", export_path),
+        match fs::remove_dir_all(&notera_files) {
+            Ok(_) => println!("✅ All exported files and the export directory deleted: {}", notera_files),
             Err(e) => print_warning(&format!("Failed to delete export directory: {}", e))
         }
     } else {
