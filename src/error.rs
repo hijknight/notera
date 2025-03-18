@@ -20,6 +20,7 @@ pub enum NoteraError {
     Export(String),
     Import(String),
     UserInput(String),
+    // Whisper(String),
     Other(String),
 }
 
@@ -33,6 +34,7 @@ impl fmt::Display for NoteraError {
             NoteraError::Export(msg) => write!(f, "Export error: {}", msg),
             NoteraError::Import(msg) => write!(f, "Import error: {}", msg),
             NoteraError::UserInput(msg) => write!(f, "User input error: {}", msg),
+            // NoteraError::Whisper(msg) => write!(f, "Whisper error: {}", msg),
             NoteraError::Other(msg) => write!(f, "Error: {}", msg),
         }
     }
@@ -72,6 +74,7 @@ pub fn handle_error(err: &NoteraError) -> ! {
         NoteraError::Export(_) => handle_export_error(err),
         NoteraError::Import(_) => handle_import_error(err),
         NoteraError::UserInput(_) => handle_user_input_error(err),
+        // NoteraError::Whisper(_) => handle_whisper_error(err),
         NoteraError::Other(_) => handle_other_error(err),
     }
 }
@@ -83,7 +86,7 @@ const EXIT_PARSE_ERROR: i32 = 4;
 const EXIT_EXPORT_ERROR: i32 = 5;
 const EXIT_IMPORT_ERROR: i32 = 6;
 const EXIT_USER_INPUT: i32 = 7;
-
+// const EXIT_WHISPER_ERROR: i32 = 8;
 pub fn handle_db_error(err: &NoteraError) -> ! {
     eprintln!("❌ {}", err);
     eprintln!("ℹ️ Please run `notera clean` to remove all files in /tmp/ and reset the database.");
@@ -119,6 +122,12 @@ pub fn handle_user_input_error(err: &NoteraError) -> ! {
     eprintln!("❌ {}", err);
     exit(EXIT_USER_INPUT);
 }
+
+
+// pub fn handle_whisper_error(err: &NoteraError) -> ! {
+//     eprintln!("❌ {}", err);
+//     exit(EXIT_WHISPER_ERROR);
+// }
 
 pub fn handle_other_error(err: &NoteraError) -> ! {
     eprintln!("❌ {}", err);
