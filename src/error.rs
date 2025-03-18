@@ -64,6 +64,12 @@ impl From<toml::ser::Error> for NoteraError {
     }
 }
 
+impl From<&str> for NoteraError {
+    fn from(err: &str) -> Self {
+        NoteraError::Other(err.to_string())
+    }
+}
+
 pub type Result<T> = std::result::Result<T, NoteraError>;
 
 pub fn handle_error(err: &NoteraError) -> ! {
