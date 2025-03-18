@@ -1,4 +1,4 @@
-# ⚠️This is a testing branch, a stable version of the beta [here](https://github.com/hijknight/notera)
+# ⚠️ This branch works great, but documentation is not up to date yet, for a stable beta version go [here](https://github.com/hijknight/notera)
 
 
 
