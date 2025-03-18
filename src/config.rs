@@ -12,7 +12,7 @@ use crate::error::{ Result, with_path };
 pub struct Config {
     pub editor: String,
     pub note_db_directory: String,
-    pub export_path: String,
+    pub notera_files_path: String,
     pub export_format: String,
 }
 
@@ -24,7 +24,7 @@ impl Config {
             let default_config = Config {
                 editor: "vim".to_string(),
                 note_db_directory: format!("{}/.local/share/notera", std::env::var("HOME").unwrap_or_else(|_| ".".to_string())),
-                export_path: format!("{}/Documents/notera/exports", std::env::var("HOME").unwrap_or_else(|_| ".".to_string())),
+                notera_files_path: format!("{}/Documents/notera", std::env::var("HOME").unwrap_or_else(|_| ".".to_string())),
                 export_format: "md".to_string(),
             };
 
@@ -33,7 +33,7 @@ impl Config {
                 "\n# Possible values:\n
     # Editor: vim, nano, emacs, nvim\n
     # Note db directory: Should be kept default unless you know what you're doing.\n
-    # Export path: Feel free to change, just make sure valid path.\n
+    # Notera files: Feel free to change, just make sure it is a valid path. This is where exports, summaries, and transcripts will end up\n
     # IMPORTANT: Choose an export format. 'md' or 'txt'. md tends to be better for exports"
             );
 
