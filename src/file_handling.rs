@@ -12,13 +12,97 @@ use chrono::Local;
 use rusqlite::{params, Connection};
 
 
+pub fn export_transcript(content: &str) -> crate::error::Result<()> {
+    let config = Config::load()?;
+    let transcript_export_path = &format!("{}/{}", &config.notera_files_path, "transcripts");
+    let format = config.export_format.as_str();
+
+    if format != "txt" && format != "md" {
+        print_warning("Unsupported format. Please use txt or md.");
+        return Ok(());
+    }
+
+    if !fs::exists(transcript_export_path)? {
+        fs::create_dir_all(transcript_export_path)
+            .map_err(|e| NoteraError::FileSystem(e, None))?;
+    }
+
+    let export_timestamp = Local::now().format("%Y-%m-%d_%H.%M").to_string();
+    let default_filename = format!("notera-transcript-{}.{}", export_timestamp, "md");
+    let output_path = format!("{}/{}", transcript_export_path, default_filename);
+
+    let mut file = fs::File::create(&output_path)
+        .map_err(|e| NoteraError::Export(format!("Failed to create file: {}", e)))?;
+
+    match format {
+        "txt" => {
+            writeln!(file, "Title: Transcript\n\nCreated: {}\n-----\n\n{}\n-----------", export_timestamp, content)
+                .map_err(|e| NoteraError::Export(format!("Failed to write to file: {}", e)))?;
+            Ok(())
+        }
+        "md" => {
+            writeln!(file, "# notera transcript {}\n\n{}", export_timestamp, content)
+                .map_err(|e| NoteraError::Export(format!("Failed to write to file: {}", e)))?;
+            Ok(())
+        }
+        _ => {
+            print_warning("You are officially a wizard. This code should have been unreachable.");
+            Ok(())
+        }
+    }
+}
+
+
+pub fn export_summary(content: &str) -> crate::error::Result<()> {
+    let config = Config::load()?;
+    let summary_export_path = &format!("{}/{}", &config.notera_files_path, "summaries");
+    let format = config.export_format.as_str();
+
+    if format != "txt" && format != "md" {
+        print_warning("Unsupported format. Please use txt or md.");
+        return Ok(());
+    }
+
+    if !fs::exists(summary_export_path)? {
+        fs::create_dir_all(summary_export_path)
+            .map_err(|e| NoteraError::FileSystem(e, None))?;
+    }
+
+    let export_timestamp = Local::now().format("%Y-%m-%d_%H.%M").to_string();
+    let default_filename = format!("notera-summary-{}.{}", export_timestamp, "md");
+    let output_path = format!("{}/{}", summary_export_path, default_filename);
+
+    let mut file = fs::File::create(&output_path)
+        .map_err(|e| NoteraError::Export(format!("Failed to create file: {}", e)))?;
+
+    match format {
+        "txt" => {
+            writeln!(file, "Title: Summary\n\nCreated: {}\n-----\n\n{}\n-----------", export_timestamp, content)
+                .map_err(|e| NoteraError::Export(format!("Failed to write to file: {}", e)))?;
+            Ok(())
+        },
+        "md" => {
+            writeln!(file, "# notera summary {}\n\n{}", export_timestamp, content)
+                .map_err(|e| NoteraError::Export(format!("Failed to write to file: {}", e)))?;
+            Ok(())
+        }
+        _ => {
+            print_warning("You are officially a wizard. This code should have been unreachable.");
+            Ok(())
+        }
+    }
+
+}
+
 pub fn export_all() -> crate::error::Result<()> {
     let conn = init_db()?;
     let mut stmt = conn.prepare("SELECT title, content, timestamp FROM notes ORDER BY timestamp DESC")
         .map_err(|e| NoteraError::Database(e))?;
     let config = Config::load()?;
+
     let format = config.export_format.as_str();
-    let export_path = &config.export_path;
+
+    let export_path = &format!("{}/{}", &config.notera_files_path, "exports");
 
 
 
@@ -95,8 +179,12 @@ pub fn export_note(title_query: &str) -> crate::error::Result<()> {
     let mut stmt = conn.prepare("SELECT title, content, timestamp FROM notes WHERE title = ?1").expect("❌ Note not found in database.");
 
     let config = Config::load()?;
+
     let format = config.export_format.as_str();
-    let export_path = &config.export_path;
+
+    let export_path = &format!("{}/{}", &config.notera_files_path, "exports");
+
+
 
     if format != "txt" && format != "md" {
         print_warning("Unsupported format. Please use txt or md. be sure to check your config file with `notera config`.");
