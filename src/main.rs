@@ -141,6 +141,7 @@ mod ai;
 use std::process;
 use clap::{ CommandFactory, Parser, Subcommand };
 
+
 /// Note-Taker CLI App
 #[derive(Parser)]
 #[command(name = "notera")]
@@ -200,6 +201,12 @@ enum Commands {
         note: Option<String>,
     },
 
+    #[command(about = "transcribe audio file with openai's whisper")]
+    Transcribe {
+        #[arg(short, long, value_name = "AUDIO_FILE_PATH", help = "transcribe a given audio file")]
+        audio_path: Option<String>,
+    },
+
     /// ⚙️ Configuration and Setup
     #[command(about = "open the notera config file with `notera config`")]
     Config,
@@ -211,7 +218,9 @@ enum Commands {
     Clean,
 }
 
-fn main() {
+
+#[tokio::main]
+async fn main() {
     let cli = Cli::parse();
 
     if !setup::is_initialized() && cli.command != Some(Commands::Init) {
@@ -291,6 +300,23 @@ fn main() {
                 Ok(())
             }
         },
+
+        Some(Commands::Transcribe { audio_path }) => {
+            if let Some(audio_path) = audio_path {
+                let transcription_result = whisper::transcribe_audio(audio_path).await;
+
+                match transcription_result {
+                    Ok(transcription) => {
+                        println!("Transcription: {}", transcription);
+                    }
+                    Err(e) => {
+                        println!("Error: {}", e);
+                    }
+                }
+            }
+
+            Ok(())
+        }
 
         Some(Commands::Config) => setup::open_config(),
 
