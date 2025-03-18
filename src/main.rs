@@ -214,6 +214,12 @@ enum Commands {
         note: Option<String>,
     },
 
+    #[command(about = "transcribe and summarize a lecture")]
+    Lecture {
+        #[arg(short, long, value_name = "AUDIO_FILE_PATH", help = "transcribe and summarize a given audio file (.mp3) (made for lectures")]
+        audio: Option<String>,
+    },
+
     /// ⚙️ Configuration and Setup
     #[command(about = "open the notera config file with `notera config`")]
     Config,
@@ -327,9 +333,28 @@ async fn main() {
             Ok(())
         }
 
+        Some(Commands::Lecture { audio }) => {
+            if let Some(audio) = audio {
+                let summscribe_result = ai::transcribe_and_summarize(audio).await;
+
+                match summscribe_result {
+                    Ok(_) => {
+                        if let Ok(_) = file_handling::export_summary(&summscribe_result.unwrap()) {
+                            println!("✅ Lecture summary exported to {}/summaries", config::Config::load().unwrap().notera_files_path);
+                        }
+                    }
+                    Err(e) => {
+                        println!("Error: {}", e);
+                    }
+                }
+            }
+
+            Ok(())
+        }
+
         Some(Commands::Summarize { file, note }) => {
             if let Some(file) = file {
-                let summary_result = ai::from_text_file(file).await;
+                let summary_result = ai::from_file(file).await;
                 match summary_result {
                     Ok(_) => {
                         if let Ok(_) = file_handling::export_summary(&summary_result.unwrap()) {
