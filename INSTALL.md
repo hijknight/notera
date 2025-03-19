@@ -11,6 +11,25 @@
     - On [Windows](https://forge.rust-lang.org/infra/other-installation-methods.html#other-ways-to-install-rustup):
       - Please download the [rustup-init.exe](https://static.rust-lang.org/rustup/dist/i686-pc-windows-gnu/rustup-init.exe)
 
+- ### OpenAI API Key (Optional, but highly recommended)
+    - During the current beta, `notera` depends on the user to use their own api key (as of right now), however it is easy to set up.
+    
+1. See this link to set up: [Open AI api key creation](https://platform.openai.com/api-keys)
+2. Add the following code to you `.zshrc` or `.bashrc` file. 
+```shell
+export OPENAI_API_KEY=your_api_key_here
+```
+3. Run the following command in your terminal:
+- ZSH:
+    ```shell
+    source ~/.zshrc
+    ```
+- BASH:
+    ```shell
+    source ~/.bashrc
+    ```
+4. Now, you should be able to use the AI features of `notera`
+
 ## Installing `notera`
 
 1. ### Using the `cargo` package manager (recommended, comes with rustup):
@@ -35,6 +54,7 @@
 
     Optional (but recommended): Add the `notera` executable to your path with the following command.
     ```bash
+    cargo build --release
     sudo mv target/release/notera /usr/local/bin
     ```
     
