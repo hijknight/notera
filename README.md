@@ -1,6 +1,6 @@
-# ⚠️ This branch works great, but documentation is not up to date yet, for a stable beta version go [here](https://github.com/hijknight/notera)
+# `notera` with AI features
 
-
+Check out the stable beta [here](https://github.com/hijknight/notera)
 
 ![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/hijknight/notera/rust.yml)
 ![Crates.io Version](https://img.shields.io/crates/v/notera)
@@ -12,17 +12,15 @@ A powerful and lightweight CLI-based note-taking app built with [Rust](https://w
 ## 👣 Features
 
 - 📋 Create, edit, delete, and view notes easily from your terminal using your favorite CLI editor (e.g., Vim (default), Nvim, Nano).
-- 📂 Organize and sort notes effortlessly.
+- 🤖 Summarize notes or lecture recordings with AI.
 - 🕒 Timestamps for notes to track when they were created or updated.
-- 🗑️ Clear all notes or delete them individually.
-- 🗂️ Export notes to `.txt` or `.md` files for external use.
-- 🤖 Includes a robust initialization and cleanup mechanism for managing configurations and data.
+- 🗂️ Export notes, summaries and transcripts to `.txt` or `.md` files for external use.
+- 👌 Includes a robust initialization and cleanup mechanism for managing configurations and data.
 - 📦 Notes are safely stored using an SQLite database.
-- 🚀 Fast and efficient workflow tailored for CLI enthusiasts.
 
 ## 📦 Installation
 
-Please see [INSTALL.md](https://github.com/hijknight/notera/blob/master/INSTALL.md) for installation instructions.
+Please see [INSTALL.md](https://github.com/hijknight/notera/blob/master/INSTALL.md) for installation instructions and prerequisite information.
 
 
 ## 🏃‍♂️ Quick Start
@@ -60,15 +58,27 @@ notera --help
       - `--all`: Delete all notes
 
 - 🗂️ Exports and Imports:
-  - `export <FLAGS>`
+  - `export <FLAGS> <ARGS>`
     - Options:
       - `--all`: Export all notes into a single `.md` or `.txt` file
-      - `--note`: Export a specific note into a `.md` or `.txt` file
+      - `--note <TITLE>`: Export a specific note into a `.md` or `.txt` file
   
-  - `import <FLAGS>`
+  - `import <FLAGS> <ARGS>`
     - Options:
       - `--dir <DIR_PATH>`: Import all qualifying notes of a directory into notera
       - `--note <FILE_PATH>`: Import a specific note into notera
+
+- 🤖 AI use:
+  - `summarize <FLAGS> <ARGS>`
+    - Options:
+      - `--note <TITLE>`: Summarize a specific `notera` note
+      - `--file <FILE_PATH>`: Summarize a `.md` or `.txt` file
+  - `transcribe <FLAGS>`
+    - Options:
+      - `--audio <AUDIO_FILE_PATH>`: transcribe an audio file
+  - `lecture <FLAGS>`
+    - Options:
+      - `--audio <AUDIO_FILE_PATH>`: transcribe and summarize an audio file (targeted at lectures)
 
 - Setup:
   - `config`: Open and modify the app's configuration settings.
@@ -76,7 +86,7 @@ notera --help
         ```toml
         editor = "nvim"
         note_db_directory = "/User/{user}/.local/share/notera"
-        export_path = "/User/{user}/Documents/notera_exports"
+        export_path = "/User/{user}/Documents/notera"
         export_format = "md"
 
         # Possible values:
@@ -85,7 +95,7 @@ notera --help
 
           # Note db directory: Should be kept default unless you know what you're doing.
 
-          # Export path: Feel free to change, just make sure valid path.
+          # Export path: Feel free to change, just make sure of a valid path.
 
           # IMPORTANT: Choose an export format. 'md' or 'txt'. md tends to be better for exports
         ```
@@ -95,7 +105,7 @@ notera --help
   - `help`: Show the default help message.
 
 - DANGER ZONE:
-  - `clean`: Delete all temporary and persistent `notera` data (export files, , including the SQLite database and temporary files.
+  - `clean`: Delete all temporary and persistent `notera` data (export files, including the SQLite database and temporary files.)
 
 
 ## 🛠 Configuration
@@ -109,8 +119,8 @@ notera config
 Configuration options include the following:
 - **Editor used**: The text editor used to create and edit notes (e.g., Vim).
 - **Database Directory**: Directory where the database is stored. (Should remain as default)
-- **Export Path**: The directory location where exported files are saved.
-- **Export Format**: The format in which exports are saved.
+- **`notera` Files Path**: The directory location where exported files are saved.
+- **Export Format**: The format in which exports, summaries, and transcripts are saved.
 
 ## 👷 Built With
 
