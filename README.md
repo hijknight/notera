@@ -1,6 +1,6 @@
-# `notera` with AI features
+# `notera` with AI features (beta)
 
-Check out the stable beta [here](https://github.com/hijknight/notera)
+### Check out the stable version [here](https://github.com/hijknight/notera)
 
 ![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/hijknight/notera/rust.yml)
 ![Crates.io Version](https://img.shields.io/crates/v/notera)
