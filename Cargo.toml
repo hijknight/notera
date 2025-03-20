@@ -1,9 +1,9 @@
 [package]
 name = "notera"
-version = "0.1.0-alpha.2"
+version = "0.1.0"
 edition = "2024"
 authors = ["Harrison Knight <hijknight@icloud.com>"]
-description = "notera is an open source minimal note taking tool"
+description = "notera is a powerful cli-based note-taking tool"
 license = "MIT"
 readme = "README.md"
 repository = "https://github.com/hijknight/notera.git"
