@@ -133,7 +133,7 @@ Configuration options include the following:
 ## 🔮 Future Plans
 
 - Better help message and optimizations for first release
-- Listening with AI
+- More Robust Error Handling
 
 ## 🪪 License
 
