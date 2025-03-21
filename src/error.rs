@@ -5,7 +5,6 @@ use std::{
     path::PathBuf,
 };
 
-
 #[derive(Debug)]
 pub enum NoteraError {
     Database(rusqlite::Error),
@@ -95,7 +94,7 @@ const EXIT_USER_INPUT: i32 = 7;
 const EXIT_AI_ERROR: i32 = 8;
 const EXIT_REQWEST_ERROR: i32 = 9;
 const EXIT_JSON_ERROR: i32 = 10;
-// const EXIT_WHISPER_ERROR: i32 = 8;
+
 pub fn handle_db_error(err: &NoteraError) -> ! {
     eprintln!("❌ {}", err);
     eprintln!("ℹ️ Please run `notera clean` to remove all files in /tmp/ and reset the database.");
@@ -131,7 +130,6 @@ pub fn handle_user_input_error(err: &NoteraError) -> ! {
     eprintln!("❌ {}", err);
     exit(EXIT_USER_INPUT);
 }
-
 
 pub fn handle_ai_error(err: &NoteraError) -> ! {
     eprintln!("❌ {}", err);
