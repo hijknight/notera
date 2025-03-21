@@ -5,14 +5,15 @@ use std::{
 };
 use crate::{
     storage::init_db,
-    error::{ print_warning, NoteraError },
+    error::{ print_warning, NoteraError, Result },
     config::Config,
+    ai::{ Transcript, Summary }
 };
 use chrono::Local;
 use rusqlite::{params, Connection};
 
 
-pub fn export_transcript(content: &str) -> crate::error::Result<()> {
+pub fn export_transcript(transcript: &Transcript) -> Result<()> {
     let config = Config::load()?;
     let transcript_export_path = &format!("{}/{}", &config.notera_files_path, "transcripts");
     let format = config.export_format.as_str();
@@ -36,12 +37,12 @@ pub fn export_transcript(content: &str) -> crate::error::Result<()> {
 
     match format {
         "txt" => {
-            writeln!(file, "Title: Transcript\n\nCreated: {}\n-----\n\n{}\n-----------", export_timestamp, content)
+            writeln!(file, "Title: Transcript\n\nCreated: {}\n-----\n\n{}\n-----------", export_timestamp, transcript.content)
                 .map_err(|e| NoteraError::Export(format!("Failed to write to file: {}", e)))?;
             Ok(())
         }
         "md" => {
-            writeln!(file, "# notera transcript {}\n\n{}", export_timestamp, content)
+            writeln!(file, "# notera transcript {}\n\n{}", export_timestamp, transcript.content)
                 .map_err(|e| NoteraError::Export(format!("Failed to write to file: {}", e)))?;
             Ok(())
         }
@@ -53,7 +54,7 @@ pub fn export_transcript(content: &str) -> crate::error::Result<()> {
 }
 
 
-pub fn export_summary(content: &str) -> crate::error::Result<()> {
+pub fn export_summary(summary: &Summary) -> Result<()> {
     let config = Config::load()?;
     let summary_export_path = &format!("{}/{}", &config.notera_files_path, "summaries");
     let format = config.export_format.as_str();
@@ -77,12 +78,12 @@ pub fn export_summary(content: &str) -> crate::error::Result<()> {
 
     match format {
         "txt" => {
-            writeln!(file, "Title: Summary\n\nCreated: {}\n-----\n\n{}\n-----------", export_timestamp, content)
+            writeln!(file, "Title: Summary\n\nCreated: {}\n-----\n\n{}\n-----------", export_timestamp, summary.content)
                 .map_err(|e| NoteraError::Export(format!("Failed to write to file: {}", e)))?;
             Ok(())
         },
         "md" => {
-            writeln!(file, "# notera summary {}\n\n{}", export_timestamp, content)
+            writeln!(file, "# notera summary {}\n\n{}", export_timestamp, summary.content)
                 .map_err(|e| NoteraError::Export(format!("Failed to write to file: {}", e)))?;
             Ok(())
         }
@@ -94,7 +95,7 @@ pub fn export_summary(content: &str) -> crate::error::Result<()> {
 
 }
 
-pub fn export_all() -> crate::error::Result<()> {
+pub fn export_all() -> Result<()> {
     let conn = init_db()?;
     let mut stmt = conn.prepare("SELECT title, content, timestamp FROM notes ORDER BY timestamp DESC")
         .map_err(|e| NoteraError::Database(e))?;
@@ -173,7 +174,7 @@ pub fn export_all() -> crate::error::Result<()> {
     Ok(())
 }
 
-pub fn export_note(title_query: &str) -> crate::error::Result<()> {
+pub fn export_note(title_query: &str) -> Result<()> {
     let conn = init_db()?;
 
     let mut stmt = conn.prepare("SELECT title, content, timestamp FROM notes WHERE title = ?1").expect("❌ Note not found in database.");
@@ -245,7 +246,7 @@ pub fn export_note(title_query: &str) -> crate::error::Result<()> {
     Ok(())
 }
 
-pub fn import_note(conn: &Connection, file_path: &str) -> crate::error::Result<bool> {
+pub fn import_note(conn: &Connection, file_path: &str) -> Result<bool> {
 
     let file_path = Path::new(file_path);
     if !file_path.exists() {
@@ -306,7 +307,7 @@ pub fn import_note(conn: &Connection, file_path: &str) -> crate::error::Result<b
 }
 
 
-pub fn import_dir(directory: &str) -> crate::error::Result<()> {
+pub fn import_dir(directory: &str) -> Result<()> {
     let conn = init_db()?;
 
     let dir_path = Path::new(directory);
