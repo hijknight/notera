@@ -4,9 +4,7 @@ use std::{
     path::PathBuf,
 };
 use serde::{ Serialize, Deserialize };
-
 use crate::error::{ Result, with_path };
-
 
 #[derive(Serialize, Deserialize)]
 pub struct Config {
@@ -66,4 +64,3 @@ pub fn get_config_path() -> PathBuf {
     path.push("config.toml");
     path
 }
-
