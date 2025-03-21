@@ -10,22 +10,26 @@ const ENV_VAR: &str = "OPENAI_API_KEY";
 const MODEL: &str = "gpt-4o-mini";
 const URL: &str = "https://api.openai.com/v1/chat/completions";
 
+pub struct Summary {
+    pub content: String,
+}
 
-pub async fn from_file(file_path: &str) -> Result<String, NoteraError> {
-    let client = Client::new();
+impl Summary {
+    pub async fn from_file(file_path: &str) -> Result<Self, NoteraError> {
+        let client = Client::new();
 
-    let file_contents = fs::read_to_string(file_path)
-        .map_err(|err| NoteraError::FileSystem(err, None))?;
+        let file_contents = fs::read_to_string(file_path)
+            .map_err(|err| NoteraError::FileSystem(err, None))?;
 
-    let openai_api_key: String = env::var(ENV_VAR)
-        .unwrap_or_else(|_| {
-            println!("Please set the {} environment variable", ENV_VAR);
-            "No api key found".to_string()
-        });
+        let openai_api_key: String = env::var(ENV_VAR)
+            .unwrap_or_else(|_| {
+                println!("Please set the {} environment variable", ENV_VAR);
+                "No api key found".to_string()
+            });
 
-    let mut sp = Spinner::new(Spinners::Dots9, "Sending text file to ai (may take some time)".into());
+        let mut sp = Spinner::new(Spinners::Dots9, "Sending text file to ai (may take some time)".into());
 
-    let body = json!({
+        let body = json!({
         "model": MODEL,
         "messages": [
             {
@@ -39,48 +43,52 @@ pub async fn from_file(file_path: &str) -> Result<String, NoteraError> {
         ]
     });
 
-    let response = client.post(URL)
-        .header("Authorization", format!("Bearer {}", openai_api_key))
-        .json(&body)
-        .send()
-        .await.unwrap();
+        let response = client.post(URL)
+            .header("Authorization", format!("Bearer {}", openai_api_key))
+            .json(&body)
+            .send()
+            .await
+            .map_err(|err| NoteraError::Reqwest(err))?;
 
-    sp.stop();
+        sp.stop();
 
-    let response_text = response.text().await.unwrap();
+        let response_text = response.text().await
+            .map_err(|err| NoteraError::Reqwest(err))?;
 
-    let json: Value = serde_json::from_str(&response_text).unwrap();
+        let json: Value = serde_json::from_str(&response_text).map_err(|err| NoteraError::SerdeJson(err))?;
 
-    println!("\n");
+        println!("\n");
 
-    if let Some(completion) = json.get("choices")
-        .and_then(|choices| choices.get(0))
-        .and_then(|choice| choice.get("message"))
-        .and_then(|message| message.get("content"))
-        .and_then(|content| content.as_str())
-    {
-        Ok(completion.to_string())
-    } else {
-        Err("unable to get completion back".into())
+        if let Some(completion) = json.get("choices")
+            .and_then(|choices| choices.get(0))
+            .and_then(|choice| choice.get("message"))
+            .and_then(|message| message.get("content"))
+            .and_then(|content| content.as_str())
+        {
+            Ok(Summary {
+                content: completion.to_string(),
+            })
+        } else {
+            Err(NoteraError::AI("Unable to find choice message".to_string()))
+        }
     }
-}
 
-pub async fn from_note(title: &str) -> Result<String, NoteraError> {
+    pub async fn from_note(title: &str) -> Result<Self, NoteraError> {
 
-    let note_content = storage::read_note(title)?
-        .join("\n\n");
+        let note_content = storage::read_note(title)?
+            .join("\n\n");
 
-    let client = Client::new();
+        let client = Client::new();
 
-    let openai_api_key: String = env::var(ENV_VAR)
-        .unwrap_or_else(|_| {
-            println!("Please set the {} environment variable", ENV_VAR);
-            "No api key found".to_string()
-        });
+        let openai_api_key: String = env::var(ENV_VAR)
+            .unwrap_or_else(|_| {
+                println!("Please set the {} environment variable", ENV_VAR);
+                "No api key found".to_string()
+            });
 
-    let mut sp = Spinner::new(Spinners::Dots9, "Sending note to ai (may take some time)".into());
+        let mut sp = Spinner::new(Spinners::Dots9, "Sending note to ai (may take some time)".into());
 
-    let body = json!({
+        let body = json!({
         "model": MODEL,
         "messages": [
             {
@@ -94,45 +102,48 @@ pub async fn from_note(title: &str) -> Result<String, NoteraError> {
         ]
     });
 
-    let response = client.post(URL)
-        .header("Authorization", format!("Bearer {}", openai_api_key))
-        .json(&body)
-        .send()
-        .await
-        .unwrap();
+        let response = client.post(URL)
+            .header("Authorization", format!("Bearer {}", openai_api_key))
+            .json(&body)
+            .send()
+            .await
+            .map_err(|err| NoteraError::Reqwest(err))?;
 
-    sp.stop();
+        sp.stop();
 
-    let response_text = response.text().await.unwrap();
+        let response_text = response.text().await
+            .map_err(|err| NoteraError::Reqwest(err))?;
 
-    let json: Value = serde_json::from_str(&response_text).unwrap();
+        let json: Value = serde_json::from_str(&response_text)
+            .map_err(|err| NoteraError::SerdeJson(err))?;
 
-    println!("\n");
+        println!("\n");
 
-    if let Some(completion) = json.get("choices")
-        .and_then(|choices| choices.get(0))
-        .and_then(|choice| choice.get("message"))
-        .and_then(|message| message.get("content"))
-        .and_then(|content| content.as_str())
-    {
-        Ok(completion.to_string())
-    } else {
-        Err("unable to get completion back".into())
+        if let Some(completion) = json.get("choices")
+            .and_then(|choices| choices.get(0))
+            .and_then(|choice| choice.get("message"))
+            .and_then(|message| message.get("content"))
+            .and_then(|content| content.as_str())
+        {
+            Ok(Summary {
+                content: completion.to_string(),
+            })
+        } else {
+            Err(NoteraError::AI("Unable to find choice message".to_string()))
+        }
+
     }
 
-}
+    pub async fn from_text(text: &str) -> Result<Self, NoteraError> {
+        let client = Client::new();
 
+        let openai_api_key: String = env::var(ENV_VAR)
+            .unwrap_or_else(|_| {
+                println!("Please set the {} environment variable", ENV_VAR);
+                "No api key found".to_string()
+            });
 
-pub async fn from_text(text: &str) -> Result<String, NoteraError> {
-    let client = Client::new();
-
-    let openai_api_key: String = env::var(ENV_VAR)
-        .unwrap_or_else(|_| {
-            println!("Please set the {} environment variable", ENV_VAR);
-            "No api key found".to_string()
-        });
-
-    let body = json!({
+        let body = json!({
         "model": MODEL,
         "messages": [
             {
@@ -143,87 +154,162 @@ pub async fn from_text(text: &str) -> Result<String, NoteraError> {
                 "role": "user",
                 "content": format!("Summarize this note: {}", text)
             }
-        ]
-    });
+        ]});
 
-    let mut sp = Spinner::new(Spinners::Dots9, "Sending note to ai (may take some time)".into());
+        let mut sp = Spinner::new(Spinners::Dots9, "Sending text to ai (may take some time)".into());
 
-    let response = client.post(URL)
-        .header("Authorization", format!("Bearer {}", openai_api_key))
-        .json(&body)
-        .send()
-        .await
-        .unwrap();
+        let response = client.post(URL)
+            .header("Authorization", format!("Bearer {}", openai_api_key))
+            .json(&body)
+            .send()
+            .await
+            .map_err(|err| NoteraError::Reqwest(err))?;
 
-    sp.stop();
+        sp.stop();
 
-    let response_text = response.text().await.unwrap();
+        let response_text = response.text().await
+            .map_err(|err| NoteraError::Reqwest(err))?;
 
-    let json: Value = serde_json::from_str(&response_text).unwrap();
+        let json: Value = serde_json::from_str(&response_text)
+            .map_err(|err| NoteraError::SerdeJson(err))?;
 
-    println!("\n");
+        println!("\n");
 
-    if let Some(completion) = json.get("choices")
-        .and_then(|choices| choices.get(0))
-        .and_then(|choice| choice.get("message"))
-        .and_then(|message| message.get("content"))
-        .and_then(|content| content.as_str())
-    {
-        Ok(completion.to_string())
-    } else {
-        Err("unable to get completion back".into())
+        if let Some(completion) = json.get("choices")
+            .and_then(|choices| choices.get(0))
+            .and_then(|choice| choice.get("message"))
+            .and_then(|message| message.get("content"))
+            .and_then(|content| content.as_str())
+        {
+            Ok(Summary {
+                content: completion.to_string(),
+            })
+        } else {
+            Err(NoteraError::AI("Unable to find choice message".to_string()))
+        }
+    }
+
+    pub async fn from_transcript(transcript: &Transcript) -> Result<Self, NoteraError> {
+        let client = Client::new();
+
+        let openai_api_key = env::var(ENV_VAR)
+            .unwrap_or_else(|_| {
+                println!("Please set the {} environment variable", ENV_VAR);
+                "No api key found".to_string()
+            });
+
+        let body = json!({
+        "model": MODEL,
+        "messages": [
+            {
+                "role": "system",
+                "content": "You are an ai bot that summarizes given transcript based on the content, assume that the person still needs to learn something from it, so don't over summarize"
+            },
+            {
+                "role": "user",
+                "content": format!("Summarize this transcript: {}", transcript.content)
+            }
+        ]});
+
+        let mut sp = Spinner::new(Spinners::Dots9, "Sending transcript to ai (may take some time)".into());
+
+
+        let response = client.post(URL)
+            .header("Authorization", format!("Bearer {}", openai_api_key))
+            .json(&body)
+            .send()
+            .await
+            .map_err(|err| NoteraError::Reqwest(err))?;
+
+        sp.stop();
+
+        let response_text = response.text().await.map_err(|err| NoteraError::Reqwest(err))?;
+
+        let json: Value = serde_json::from_str(&response_text)
+            .map_err(|err| NoteraError::SerdeJson(err))?;
+
+        println!("\n");
+
+        if let Some(completion) = json.get("choices")
+            .and_then(|choices| choices.get(0))
+            .and_then(|choice| choice.get("message"))
+            .and_then(|message| message.get("content"))
+            .and_then(|content| content.as_str())
+        {
+            Ok(Summary {
+                content: completion.to_string(),
+            })
+        } else {
+            Err(NoteraError::AI("Unable to find choice message".to_string()))
+        }
+
+    }
+
+    pub async fn transcribe_and_summarize(audio_file: &str) -> Result<Self, NoteraError> {
+        let transcript = Transcript::from_audio(audio_file).await?;
+        let summary = Summary::from_transcript(&transcript).await?;
+        Ok(summary)
     }
 }
 
 
-pub async fn transcribe_audio(audio_file: &str) -> Result<String, NoteraError> {
-    let openai_api_key: String = env::var(ENV_VAR)
-        .unwrap_or_else(|_| {
-            println!("Please set the {} environment variable", ENV_VAR);
-            "No api key found".to_string()
-        });
+pub struct Transcript {
+    pub content: String,
+}
 
-    let client = Client::new();
+impl Transcript {
+    pub async fn from_audio(audio_file: &str) -> Result<Self, NoteraError> {
+        let openai_api_key: String = env::var(ENV_VAR)
+            .unwrap_or_else(|_| {
+                println!("Please set the {} environment variable", ENV_VAR);
+                "No api key found".to_string()
+            });
 
-    let mut sp = Spinner::new(Spinners::Dots9, "Sending audio file to ai for transcription (may take sometime depending on length)".into());
+        let client = Client::new();
 
-    let mut file = File::open(audio_file)?;
-    let mut audio_data = Vec::new();
-    file.read_to_end(&mut audio_data)?;
+        let mut sp = Spinner::new(Spinners::Dots9, "Sending audio file to ai for transcription (may take sometime depending on length)".into());
 
-    let file_part = reqwest::multipart::Part::bytes(audio_data)
-        .file_name("audio.mp3")
-        .mime_str("audio/mpeg").unwrap();
+        let mut file = File::open(audio_file)?;
+        let mut audio_data = Vec::new();
+        file.read_to_end(&mut audio_data).map_err(|err| NoteraError::FileSystem(err, None))?;
 
-    let form = reqwest::multipart::Form::new()
-        .part("file", file_part)
-        .text("model", "whisper-1");
+        let file_part = reqwest::multipart::Part::bytes(audio_data)
+            .file_name("audio.mp3")
+            .mime_str("audio/mpeg")
+            .map_err(|err| NoteraError::Other(err.to_string()))?;
 
-    let response = client
-        .post("https://api.openai.com/v1/audio/transcriptions")
-        .header("Authorization", format!("Bearer {}", openai_api_key))
-        .multipart(form)
-        .send()
-        .await.unwrap();
+        let form = reqwest::multipart::Form::new()
+            .part("file", file_part)
+            .text("model", "whisper-1");
 
-    sp.stop();
+        let response = client
+            .post("https://api.openai.com/v1/audio/transcriptions")
+            .header("Authorization", format!("Bearer {}", openai_api_key))
+            .multipart(form)
+            .send()
+            .await
+            .map_err(|err| NoteraError::Reqwest(err))?;
 
-    println!("\n");
+        sp.stop();
 
-    let response_text = response.text().await.unwrap();
+        println!("\n");
 
-    let json: Value = serde_json::from_str(&response_text).unwrap();
+        let response_text = response.text().await
+            .map_err(|err| NoteraError::Other(err.to_string()))?;
 
-    if let Some(transcript) = json.get("text") {
-        Ok(transcript.as_str().unwrap().to_string())
-    } else {
-        Err("Failed to transcribe audio file".into())
+        let json: Value = serde_json::from_str(&response_text).map_err(|err| NoteraError::SerdeJson(err))?;
+
+        if let Some(transcript) = json.get("text") {
+            Ok(Transcript {
+                content: transcript.to_string(),
+            })
+        } else {
+            Err(NoteraError::AI("Unable to find choice message".to_string()))
+        }
     }
 }
 
 
-pub async fn transcribe_and_summarize(audio_file: &str) -> Result<String, NoteraError> {
-    let transcript = transcribe_audio(audio_file).await?;
-    let summary = from_text(&transcript).await?;
-    Ok(summary)
-}
+
+
+
