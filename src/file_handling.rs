@@ -10,8 +10,7 @@ use crate::{
     ai::{ Transcript, Summary }
 };
 use chrono::Local;
-use rusqlite::{params, Connection};
-
+use rusqlite::{ params, Connection };
 
 pub fn export_transcript(transcript: &Transcript) -> Result<()> {
     let config = Config::load()?;
@@ -52,7 +51,6 @@ pub fn export_transcript(transcript: &Transcript) -> Result<()> {
         }
     }
 }
-
 
 pub fn export_summary(summary: &Summary) -> Result<()> {
     let config = Config::load()?;
@@ -305,7 +303,6 @@ pub fn import_note(conn: &Connection, file_path: &str) -> Result<bool> {
     println!("✅ Imported note '{}' from '{}' successfully!", title, file_path.display());
     Ok(true)
 }
-
 
 pub fn import_dir(directory: &str) -> Result<()> {
     let conn = init_db()?;
