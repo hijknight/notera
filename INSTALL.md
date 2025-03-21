@@ -30,7 +30,7 @@ export OPENAI_API_KEY=your_api_key_here
     ```
 4. Now, you should be able to use the AI features of `notera`
 
-## Installing `notera`
+## Installing the `notera` AI alpha
 
 1. ### Using the `cargo` package manager (recommended, comes with rustup):
     The fastest and easiest way to install `notera` is with `cargo`, using the `install <BINARY>` subcommand. 
@@ -38,7 +38,7 @@ export OPENAI_API_KEY=your_api_key_here
     
     To install `notera` with crates.io, run the following command in your terminal. 
     ```bash
-    cargo install notera@0.1.0.alpha.0
+    cargo install notera@1.0.0-alpha.0
     ```
    
     Installing with `cargo` will automatically add the app to your path, allowing you to just run `$ notera` to get started
