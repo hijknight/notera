@@ -10,7 +10,7 @@ A powerful and lightweight CLI-based note-taking app built with [Rust](https://w
 
 ## 👣 Features
 
-- 📋 Create, edit, delete, and view notes easily from your terminal using your favorite CLI editor (e.g., Vim (default), Nvim, Nano).
+- 📋 Create, edit, delete, and view notes easily from your terminal using your favorite CLI editor (e.g., Vim (default), nvim, nano).
 - 🤖 Summarize notes or lecture recordings with AI.
 - 🕒 Timestamps for notes to track when they were created or updated.
 - 🗂️ Export notes, summaries and transcripts to `.txt` or `.md` files for external use.
@@ -153,15 +153,14 @@ mod file_handling;
 /// handles all AI communications
 mod ai;
 
-
 use std::process;
 use clap::{ CommandFactory, Parser, Subcommand };
 
 /// `notera` CLI App
 #[derive(Parser)]
-#[command(name = "notera")]
-#[command(version = "0.1.0.alpha.2")]
-#[command(about = "A simple CLI-based note-taking app.", long_about = None)]
+#[command(name = "notera (AI-BETA)")]
+#[command(version = "1.0.0-alpha")]
+#[command(about = "A simple CLI-based note-taking app with powerful AI features.", long_about = None)]
 struct Cli {
     #[command(subcommand)]
     command: Option<Commands>,
@@ -231,10 +230,12 @@ enum Commands {
     /// summarize a given notera note or a text file
     #[command(about = "summarize a given text file or note with ai")]
     Summarize {
-        #[arg(short, long, value_name = "file", help = "summarize a text file (.txt, .md)")]
+        #[arg(short, long, value_name = "FILE", help = "summarize a text file (.txt, .md)")]
         file: Option<String>,
         #[arg(short, long, value_name = "TITLE", help = "summarize a notera note given a title")]
         note: Option<String>,
+        #[arg(short, long, value_name = "TEXT", help = "quickly summarize a piece of text")]
+        text: Option<String>,
     },
 
 
@@ -249,7 +250,7 @@ enum Commands {
     #[command(about = "open the notera config file with `notera config`")]
     Config,
 
-    /// initialize or reinitilalize `notera` for first use
+    /// initialize or reinitialize `notera` for first use
     #[command(about = "initialize notera with `notera init`")]
     Init,
 
@@ -318,7 +319,10 @@ async fn main() {
             } else if let Some(note_file_path) = note {
                 match storage::init_db() {
                     Ok(conn) => {
-                        file_handling::import_note(&conn, note_file_path).unwrap();
+                        file_handling::import_note(&conn, note_file_path).unwrap_or_else(|err| {
+                            println!("error importing file {}", err);
+                            false
+                        });
                         Ok(())
                     },
                     Err(e) => Err(e),
@@ -343,12 +347,12 @@ async fn main() {
 
         Some(Commands::Transcribe { audio }) => {
             if let Some(audio) = audio {
-                let transcription_result = ai::transcribe_audio(audio).await;
+                let transcription_result = ai::Transcript::from_audio(audio).await;
 
                 match transcription_result {
                     Ok(_) => {
                         if let Ok(_) = file_handling::export_transcript(&transcription_result.unwrap()) {
-                            println!("✅ Transcription exported to {}/transcripts", config::Config::load().unwrap().notera_files_path);
+                            println!("✅ Transcript exported to {}/transcripts", config::Config::load().unwrap().notera_files_path);
                         }
                     }
                     Err(e) => {
@@ -362,11 +366,11 @@ async fn main() {
 
         Some(Commands::Lecture { audio }) => {
             if let Some(audio) = audio {
-                let summscribe_result = ai::transcribe_and_summarize(audio).await;
+                let summary_result = ai::Summary::transcribe_and_summarize(audio).await;
 
-                match summscribe_result {
+                match summary_result {
                     Ok(_) => {
-                        if let Ok(_) = file_handling::export_summary(&summscribe_result.unwrap()) {
+                        if let Ok(_) = file_handling::export_summary(&summary_result.unwrap()) {
                             println!("✅ Lecture summary exported to {}/summaries", config::Config::load().unwrap().notera_files_path);
                         }
                     }
@@ -379,9 +383,9 @@ async fn main() {
             Ok(())
         }
 
-        Some(Commands::Summarize { file, note }) => {
+        Some(Commands::Summarize { file, note, text }) => {
             if let Some(file) = file {
-                let summary_result = ai::from_file(file).await;
+                let summary_result = ai::Summary::from_file(file).await;
                 match summary_result {
                     Ok(_) => {
                         if let Ok(_) = file_handling::export_summary(&summary_result.unwrap()) {
@@ -394,9 +398,8 @@ async fn main() {
                 }
 
                 Ok(())
-
             } else if let Some(note) = note {
-                let summary_result = ai::from_note(note).await;
+                let summary_result = ai::Summary::from_note(note).await;
 
                 match summary_result {
                     Ok(_) => {
@@ -404,6 +407,21 @@ async fn main() {
                             println!("✅ Summary exported to {}/summaries", config::Config::load().unwrap().notera_files_path);
                         }
                     },
+                    Err(e) => {
+                        println!("Error: {}", e);
+                    }
+                }
+
+                Ok(())
+            } else if let Some(text) = text {
+                let summary_result = ai::Summary::from_text(text).await;
+
+                match summary_result {
+                    Ok(_) => {
+                        if let Ok(_) = file_handling::export_summary(&summary_result.unwrap()) {
+                            println!("✅ Summary exported to {}/summaries", config::Config::load().unwrap().notera_files_path);
+                        }
+                    }
                     Err(e) => {
                         println!("Error: {}", e);
                     }
