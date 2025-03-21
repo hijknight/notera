@@ -1,6 +1,5 @@
 use rusqlite::{params, Connection };
-use std::fs;
-use std::path::{ PathBuf };
+use std::{ fs, path::PathBuf };
 use chrono::Local;
 use crate::{
     error::{
@@ -11,7 +10,6 @@ use crate::{
     },
     config::Config
 };
-
 
 pub fn get_db_path() -> Result<PathBuf> {
     let config = Config::load()?;
@@ -39,7 +37,6 @@ pub fn init_db() -> Result<Connection> {
     Ok(conn)
 }
 
-
 pub fn save_note(title: &str) -> Result<()> {
     let conn = init_db()?;
     let config = Config::load()?;
@@ -52,7 +49,6 @@ pub fn save_note(title: &str) -> Result<()> {
         .arg(&temp_file_path)
         .status()
         .map_err(|e| NoteraError::Other(format!("Failed to open editor: {}", e)))?;
-
 
     if !status.success() {
         return Err(NoteraError::Other("Editor exited with non-zero status".to_string()));
@@ -74,12 +70,9 @@ pub fn save_note(title: &str) -> Result<()> {
         params![title.trim(), content, timestamp],
     ).map_err(|e| NoteraError::Database(e))?;
 
-
-
     println!("✅ Note saved successfully!");
     Ok(())
 }
-
 
 pub fn read_notes() -> Result<Vec<String>> {
 
@@ -96,13 +89,13 @@ pub fn read_notes() -> Result<Vec<String>> {
         Ok((title, content, timestamp))
     }).map_err(|e| NoteraError::Database(e))?;
 
-
     let mut notes = Vec::new();
 
     for note_result in notes_iter {
         let (title, content, timestamp) = note_result.map_err(|e| NoteraError::Database(e))?;
         notes.push(format!("📝 Title: {}\n⏳ Created: {}\n\n{}\n", title, timestamp, content));
     }
+
     Ok(notes)
 }
 
@@ -193,7 +186,6 @@ pub fn delete_note(title: &str) -> Result<()> {
     let title = title.trim();
     let result = conn.execute("DELETE FROM notes WHERE title = ?1", params![title])
         .map_err(|e| NoteraError::Database(e))?;
-    // I forgot an s in notes, and it took me an hour to fix. ^^^ OMG
 
     if result == 0 {
         print_warning(&format!("Note not found: '{}'", title));
@@ -217,7 +209,6 @@ pub fn delete_note(title: &str) -> Result<()> {
 
 pub fn clear_notes() -> Result<()> {
     let conn = init_db()?;
-
 
     println!("⚠️ WARNING: This will permanently delete all notes. Type 'yes' to confirm");
     let mut confirmation = String::new();
