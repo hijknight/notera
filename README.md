@@ -20,7 +20,7 @@ A powerful and lightweight CLI-based note-taking app built with [Rust](https://w
 
 ## 📦 Installation
 
-Please see [INSTALL.md](https://github.com/hijknight/notera/blob/master/INSTALL.md) for installation instructions and prerequisite information.
+Please see [INSTALL.md](https://github.com/hijknight/notera/blob/ai-beta/INSTALL.md) for installation instructions and prerequisite information.
 
 
 ## 🏃‍♂️ Quick Start
