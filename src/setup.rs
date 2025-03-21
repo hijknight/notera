@@ -1,11 +1,20 @@
-use std::{env, process::Command, fs, io, path::Path};
-use crate::error::{ NoteraError, Result, print_warning };
+use std::{
+    env,
+    process::Command,
+    fs,
+    io,
+    path::Path
+};
+use crate::error::{
+    NoteraError,
+    Result,
+    print_warning
+};
 
 pub fn is_initialized() -> bool {
     let config_path = crate::config::get_config_path();
     config_path.exists()
 }
-
 
 pub fn init() -> Result<()> {
     crate::config::Config::load()?;
@@ -41,9 +50,7 @@ pub fn open_config() -> Result<()> {
     Ok(())
 }
 
-
-
-/// Cleans up notera's data, including the SQLite database, temp files, and optionally the config file.
+/// Cleans up notera's data, including the SQLite database, temp files, and optionally the /notera folder.
 pub fn clean() -> Result<()> {
     let db_path = crate::storage::get_db_path()?;
     let config_path = crate::config::get_config_path();
