@@ -1,15 +1,9 @@
-
 use std::{
     process::exit,
     fmt,
     io,
     path::PathBuf,
 };
-// exit codes
-
-// 1 - standard exit
-// 2 - db error exit
-// 3 - fs error exit
 
 
 #[derive(Debug)]
@@ -20,7 +14,9 @@ pub enum NoteraError {
     Export(String),
     Import(String),
     UserInput(String),
-    // Whisper(String),
+    AI(String),
+    Reqwest(reqwest::Error),
+    SerdeJson(serde_json::Error),
     Other(String),
 }
 
@@ -34,7 +30,9 @@ impl fmt::Display for NoteraError {
             NoteraError::Export(msg) => write!(f, "Export error: {}", msg),
             NoteraError::Import(msg) => write!(f, "Import error: {}", msg),
             NoteraError::UserInput(msg) => write!(f, "User input error: {}", msg),
-            // NoteraError::Whisper(msg) => write!(f, "Whisper error: {}", msg),
+            NoteraError::AI(msg) => write!(f, "AI error: {}", msg),
+            NoteraError::Reqwest(err) => write!(f, "Reqwest error: {}", err),
+            NoteraError::SerdeJson(err) => write!(f, "Serde json error: {}", err),
             NoteraError::Other(msg) => write!(f, "Error: {}", msg),
         }
     }
@@ -80,7 +78,9 @@ pub fn handle_error(err: &NoteraError) -> ! {
         NoteraError::Export(_) => handle_export_error(err),
         NoteraError::Import(_) => handle_import_error(err),
         NoteraError::UserInput(_) => handle_user_input_error(err),
-        // NoteraError::Whisper(_) => handle_whisper_error(err),
+        NoteraError::AI(_) => handle_ai_error(err),
+        NoteraError::Reqwest(_) => handle_reqwest_error(err),
+        NoteraError::SerdeJson(_) => handle_json_error(err),
         NoteraError::Other(_) => handle_other_error(err),
     }
 }
@@ -92,6 +92,9 @@ const EXIT_PARSE_ERROR: i32 = 4;
 const EXIT_EXPORT_ERROR: i32 = 5;
 const EXIT_IMPORT_ERROR: i32 = 6;
 const EXIT_USER_INPUT: i32 = 7;
+const EXIT_AI_ERROR: i32 = 8;
+const EXIT_REQWEST_ERROR: i32 = 9;
+const EXIT_JSON_ERROR: i32 = 10;
 // const EXIT_WHISPER_ERROR: i32 = 8;
 pub fn handle_db_error(err: &NoteraError) -> ! {
     eprintln!("❌ {}", err);
@@ -130,10 +133,21 @@ pub fn handle_user_input_error(err: &NoteraError) -> ! {
 }
 
 
-// pub fn handle_whisper_error(err: &NoteraError) -> ! {
-//     eprintln!("❌ {}", err);
-//     exit(EXIT_WHISPER_ERROR);
-// }
+pub fn handle_ai_error(err: &NoteraError) -> ! {
+    eprintln!("❌ {}", err);
+
+    exit(EXIT_AI_ERROR);
+}
+
+pub fn handle_reqwest_error(err: &NoteraError) -> ! {
+    eprintln!("Error with reqwest and api use: {}", err);
+    exit(EXIT_REQWEST_ERROR);
+}
+
+pub fn handle_json_error(err: &NoteraError) -> ! {
+    eprintln!("JSON error: {}", err);
+    exit(EXIT_JSON_ERROR);
+}
 
 pub fn handle_other_error(err: &NoteraError) -> ! {
     eprintln!("❌ {}", err);
