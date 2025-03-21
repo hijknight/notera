@@ -1,10 +1,8 @@
 use std::{ fs::{ self, File }, env, io::Read };
 use reqwest::Client;
 use serde_json::{ Value, json };
-use crate::error::NoteraError;
-use crate::storage;
+use crate::{ error::NoteraError, storage };
 use spinners::{ Spinner, Spinners };
-
 
 const ENV_VAR: &str = "OPENAI_API_KEY";
 const MODEL: &str = "gpt-4o-mini";
@@ -251,7 +249,6 @@ impl Summary {
         Ok(summary)
     }
 }
-
 
 pub struct Transcript {
     pub content: String,
