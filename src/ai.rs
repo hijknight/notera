@@ -393,14 +393,14 @@ impl Transcript {
 
         let client = Client::new();
 
-        let mut sp = Spinner::new(Spinners::Dots9, "Sending audio file to ai for transcription (may take sometime depending on length)".into());
+        let mut sp = Spinner::new(Spinners::Dots9, "Transcribing... (time dependent on length)".into());
 
         let mut file = File::open(audio_file)?;
         let mut audio_data = Vec::new();
         file.read_to_end(&mut audio_data).map_err(|err| NoteraError::FileSystem(err, None))?;
 
         let file_part = reqwest::multipart::Part::bytes(audio_data)
-            .file_name("audio.mp3")
+            .file_name("audio.m4a")
             .mime_str("audio/mpeg")
             .map_err(|err| NoteraError::Other(err.to_string()))?;
 
@@ -418,12 +418,12 @@ impl Transcript {
 
         sp.stop();
 
-        println!("\n");
-
         let response_text = response.text().await
             .map_err(|err| NoteraError::Other(err.to_string()))?;
 
         let json: Value = serde_json::from_str(&response_text).map_err(|err| NoteraError::SerdeJson(err))?;
+
+        println!("\n");
 
         if let Some(transcript) = json.get("text") {
             #[allow(dead_code)]
