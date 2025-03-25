@@ -225,13 +225,15 @@ enum Commands {
     Transcribe {
         #[arg(short, long, help = "tell notera whether to print the transcript to the terminal or not")]
         print: bool,
-        #[arg(short, long, value_name = "AUDIO_FILE_PATH", help = "transcribe a given audio file (.mp3)")]
+        #[arg(short, long, value_name = "AUDIO_FILE_PATH", help = "transcribe a given audio file (Only .m4a - Voice memos, quick time player)")]
         audio: Option<String>,
     },
 
     /// summarize a given notera note or a text file
     #[command(about = "summarize a given text file or note with ai")]
     Summarize {
+        #[arg(short, long, help = "tell notera whether to export the summary to the notera/summaries folder or not")]
+        no_export: bool,
         #[arg(short, long, help = "tell notera whether to print the summary to the terminal or not")]
         print: bool,
         #[arg(short, long, value_name = "FILE", help = "summarize a text file (.txt, .md)")]
@@ -250,7 +252,7 @@ enum Commands {
     Lecture {
         #[arg(short, long, help = "tell notera whether to print the summary to the terminal or not")]
         print: bool,
-        #[arg(short, long, value_name = "AUDIO_FILE_PATH", help = "transcribe and summarize a given audio file (.mp3) (made for lectures")]
+        #[arg(short, long, value_name = "AUDIO_FILE_PATH", help = "transcribe and summarize a given audio file (.m4a - Voice memos, quick time player)")]
         audio: Option<String>,
     },
 
@@ -376,13 +378,11 @@ async fn main() {
             Ok(())
         }
 
-        Some(Commands::Summarize { file, note, text , print, list}) => {
+        Some(Commands::Summarize { file, note, text , print, list, no_export}) => {
             if let Some(file) = file {
                 let summary_result = ai::Summary::from_file(file).await;
                 match summary_result {
                     Ok(summary) => {
-
-
                         if let Ok(_) = file_handling::export_summary(&summary) {
 
                             if *print {
@@ -476,7 +476,7 @@ async fn main() {
                                 summary.print();
                             }
 
-                            println!("✅ Lecture summary_result exported to {}/summaries", config::Config::load().unwrap().notera_files_path);
+                            println!("✅ Lecture summary exported to {}/summaries", config::Config::load().unwrap().notera_files_path);
                         }
                     }
                     Err(e) => {
