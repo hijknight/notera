@@ -1,4 +1,4 @@
-# `notera` with AI features (alpha)
+# `notera` with AI features (alpha) README out of date
 
 ### Check out the stable version [here](https://github.com/hijknight/notera)
 
