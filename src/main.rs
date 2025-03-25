@@ -233,7 +233,7 @@ enum Commands {
     #[command(about = "summarize a given text file or note with ai")]
     Summarize {
         #[arg(short, long, help = "tell notera whether to export the summary to the notera/summaries folder or not")]
-        no_export: bool,
+        export: bool,
         #[arg(short, long, help = "tell notera whether to print the summary to the terminal or not")]
         print: bool,
         #[arg(short, long, value_name = "FILE", help = "summarize a text file (.txt, .md)")]
@@ -245,7 +245,6 @@ enum Commands {
         #[arg(short, long, value_name = "FILE", help = "make a list nicer from a file (.txt, .md)")]
         list: Option<String>,
     },
-
 
     /// transcribe and summarize a recorded lecture
     #[command(about = "transcribe and summarize a lecture")]
@@ -378,93 +377,121 @@ async fn main() {
             Ok(())
         }
 
-        Some(Commands::Summarize { file, note, text , print, list, no_export}) => {
+        Some(Commands::Summarize{ file, note, text , print, list, export}) => {
             if let Some(file) = file {
-                let summary_result = ai::Summary::from_file(file).await;
-                match summary_result {
-                    Ok(summary) => {
-                        if let Ok(_) = file_handling::export_summary(&summary) {
+                if !*print && !*export {
+                    println!("No flags given for summary to print or export. Use `--print` and/or `--export` to print or export the summary.");
+                } else {
+                    let summary_result = ai::Summary::from_file(file).await;
 
+                    match summary_result {
+                        Ok(summary) => {
                             if *print {
                                 summary.print();
                             }
 
-                            println!("✅ Summary exported to {}/summaries", config::Config::load().unwrap().notera_files_path);
-
+                            if *export {
+                                if let Ok(_) = file_handling::export_summary(&summary) {
+                                    println!("Summary exported to {}/summaries", config::Config::load().unwrap().notera_files_path);
+                                } else {
+                                    println!("Unable to export summary. Please check your permissions.");
+                                }
+                            }
                         }
-                    },
-                    Err(e) => {
-                        println!("Error: {}", e);
+                        Err(e) => {
+                            println!("Error: {}", e);
+                        }
                     }
                 }
 
                 Ok(())
             } else if let Some(note) = note {
-                let summary_result = ai::Summary::from_note(note).await;
+                if !*print && !*export {
+                    println!("No flag given for summary to print or export. Use `--print` and/or `--export` to print or export the summary.");
+                } else {
+                    let summary_result = ai::Summary::from_note(note).await;
 
-                match summary_result {
-                    Ok(summary) => {
-                        if let Ok(_) = file_handling::export_summary(&summary) {
-
+                    match summary_result {
+                        Ok(summary) => {
                             if *print {
                                 summary.print();
                             }
 
-                            println!("✅ Summary exported to {}/summaries", config::Config::load().unwrap().notera_files_path);
+                            if *export {
+                                if let Ok(_) = file_handling::export_summary(&summary) {
+                                    println!("Summary exported to {}/summaries", config::Config::load().unwrap().notera_files_path);
+                                } else {
+                                    println!("Unable to export summary. Please check your permissions.");
+                                }
+                            }
                         }
-                    },
-                    Err(e) => {
-                        println!("Error: {}", e);
+                        Err(e) => {
+                            println!("Error: {}", e);
+                        }
                     }
                 }
 
                 Ok(())
             } else if let Some(text) = text {
-                let summary_result = ai::Summary::from_text(text).await;
+                if !*print && !*export {
+                    println!("No flag given for summary to print or export. Use `--print` and/or `--export` to print or export the summary.");
+                } else {
+                    let summary_result = ai::Summary::from_text(text).await;
 
-                match summary_result {
-                    Ok(summary) => {
-                        if let Ok(_) = file_handling::export_summary(&summary) {
-
+                    match summary_result {
+                        Ok(summary) => {
                             if *print {
                                 summary.print();
                             }
 
-                            println!("✅ Summary exported to {}/summaries", config::Config::load().unwrap().notera_files_path);
+                            if *export {
+                                if let Ok(_) = file_handling::export_summary(&summary) {
+                                    println!("Summary exported to {}/summaries", config::Config::load().unwrap().notera_files_path);
+                                } else {
+                                    println!("Unable to export summary. Please check your permissions.");
+                                }
+                            }
+                        }
+                        Err(e) => {
+                            println!("Error: {}", e);
                         }
                     }
-                    Err(e) => {
-                        println!("Error: {}", e);
-                    }
+
                 }
 
                 Ok(())
-            } else if let Some(file_path) = list {
-                let summary_result = ai::Summary::from_list_file(&file_path).await;
-
-                match summary_result {
-                    Ok(summary) => {
-                        if let Ok(_) = file_handling::export_summary(&summary) {
+            } else if let Some(list) = list {
+                if !*print && !*export {
+                    println!("No flag given for summary to print or export. Use `--print` and/or `--export` to print or export the summary.");
+                } else {
+                    let summary_result = ai::Summary::from_list_file(list).await;
+                    match summary_result {
+                        Ok(summary) => {
                             if *print {
                                 summary.print();
                             }
 
-                            println!("✅ Summary exported to {}/summaries", config::Config::load().unwrap().notera_files_path);
+                            if *export {
+                                if let Ok(_) = file_handling::export_summary(&summary) {
+                                    println!("Summary exported to {}/summaries", config::Config::load().unwrap().notera_files_path);
+                                } else {
+                                    println!("Unable to export summary. Please check your permissions.");
+                                }
+                            }
+                        }
+                        Err(e) => {
+                            println!("Error: {}", e);
                         }
                     }
-                    Err(e) => {
-                        println!("Error: {}", e);
-                    }
                 }
-
                 Ok(())
             } else {
-                println!("No valid import option provided. Use `--file` or `--note` or `--text`.");
+                println!("No valid import option provided. Use `--file`, `--note`, `--text` or `--list`.");
                 Ok(())
             }
         }
 
-        Some(Commands::Lecture { audio , print}) => {
+        Some(Commands::Lecture { audio , print }) => {
             if let Some(audio) = audio {
                 let summary_result = ai::Summary::transcribe_and_summarize(audio).await;
 
