@@ -223,6 +223,8 @@ enum Commands {
     /// transcribe a given audio file and export it notera/transcripts
     #[command(about = "transcribe an audio file with openai's whisper")]
     Transcribe {
+        #[arg(short, long, help = "tell notera whether to print the transcript to the terminal or not")]
+        print: bool,
         #[arg(short, long, value_name = "AUDIO_FILE_PATH", help = "transcribe a given audio file (.mp3)")]
         audio: Option<String>,
     },
@@ -230,18 +232,24 @@ enum Commands {
     /// summarize a given notera note or a text file
     #[command(about = "summarize a given text file or note with ai")]
     Summarize {
+        #[arg(short, long, help = "tell notera whether to print the summary to the terminal or not")]
+        print: bool,
         #[arg(short, long, value_name = "FILE", help = "summarize a text file (.txt, .md)")]
         file: Option<String>,
         #[arg(short, long, value_name = "TITLE", help = "summarize a notera note given a title")]
         note: Option<String>,
         #[arg(short, long, value_name = "TEXT", help = "quickly summarize a piece of text")]
         text: Option<String>,
+        #[arg(short, long, value_name = "FILE", help = "make a list nicer from a file (.txt, .md)")]
+        list: Option<String>,
     },
 
 
     /// transcribe and summarize a recorded lecture
     #[command(about = "transcribe and summarize a lecture")]
     Lecture {
+        #[arg(short, long, help = "tell notera whether to print the summary to the terminal or not")]
+        print: bool,
         #[arg(short, long, value_name = "AUDIO_FILE_PATH", help = "transcribe and summarize a given audio file (.mp3) (made for lectures")]
         audio: Option<String>,
     },
@@ -345,13 +353,17 @@ async fn main() {
             }
         },
 
-        Some(Commands::Transcribe { audio }) => {
+        Some(Commands::Transcribe { audio , print}) => {
             if let Some(audio) = audio {
                 let transcription_result = ai::Transcript::from_audio(audio).await;
 
                 match transcription_result {
-                    Ok(_) => {
-                        if let Ok(_) = file_handling::export_transcript(&transcription_result.unwrap()) {
+                    Ok(transcript) => {
+                        if let Ok(_) = file_handling::export_transcript(&transcript) {
+                            if *print {
+                                transcript.print();
+                            }
+
                             println!("✅ Transcript exported to {}/transcripts", config::Config::load().unwrap().notera_files_path);
                         }
                     }
@@ -364,32 +376,21 @@ async fn main() {
             Ok(())
         }
 
-        Some(Commands::Lecture { audio }) => {
-            if let Some(audio) = audio {
-                let summary_result = ai::Summary::transcribe_and_summarize(audio).await;
-
-                match summary_result {
-                    Ok(_) => {
-                        if let Ok(_) = file_handling::export_summary(&summary_result.unwrap()) {
-                            println!("✅ Lecture summary exported to {}/summaries", config::Config::load().unwrap().notera_files_path);
-                        }
-                    }
-                    Err(e) => {
-                        println!("Error: {}", e);
-                    }
-                }
-            }
-
-            Ok(())
-        }
-
-        Some(Commands::Summarize { file, note, text }) => {
+        Some(Commands::Summarize { file, note, text , print, list}) => {
             if let Some(file) = file {
                 let summary_result = ai::Summary::from_file(file).await;
                 match summary_result {
-                    Ok(_) => {
-                        if let Ok(_) = file_handling::export_summary(&summary_result.unwrap()) {
+                    Ok(summary) => {
+
+
+                        if let Ok(_) = file_handling::export_summary(&summary) {
+
+                            if *print {
+                                summary.print();
+                            }
+
                             println!("✅ Summary exported to {}/summaries", config::Config::load().unwrap().notera_files_path);
+
                         }
                     },
                     Err(e) => {
@@ -402,8 +403,13 @@ async fn main() {
                 let summary_result = ai::Summary::from_note(note).await;
 
                 match summary_result {
-                    Ok(_) => {
-                        if let Ok(_) = file_handling::export_summary(&summary_result.unwrap()) {
+                    Ok(summary) => {
+                        if let Ok(_) = file_handling::export_summary(&summary) {
+
+                            if *print {
+                                summary.print();
+                            }
+
                             println!("✅ Summary exported to {}/summaries", config::Config::load().unwrap().notera_files_path);
                         }
                     },
@@ -417,8 +423,32 @@ async fn main() {
                 let summary_result = ai::Summary::from_text(text).await;
 
                 match summary_result {
-                    Ok(_) => {
-                        if let Ok(_) = file_handling::export_summary(&summary_result.unwrap()) {
+                    Ok(summary) => {
+                        if let Ok(_) = file_handling::export_summary(&summary) {
+
+                            if *print {
+                                summary.print();
+                            }
+
+                            println!("✅ Summary exported to {}/summaries", config::Config::load().unwrap().notera_files_path);
+                        }
+                    }
+                    Err(e) => {
+                        println!("Error: {}", e);
+                    }
+                }
+
+                Ok(())
+            } else if let Some(file_path) = list {
+                let summary_result = ai::Summary::from_list_file(&file_path).await;
+
+                match summary_result {
+                    Ok(summary) => {
+                        if let Ok(_) = file_handling::export_summary(&summary) {
+                            if *print {
+                                summary.print();
+                            }
+
                             println!("✅ Summary exported to {}/summaries", config::Config::load().unwrap().notera_files_path);
                         }
                     }
@@ -429,9 +459,33 @@ async fn main() {
 
                 Ok(())
             } else {
-                println!("No valid import option provided. Use `--text-file` or `--note`.");
+                println!("No valid import option provided. Use `--file` or `--note` or `--text`.");
                 Ok(())
             }
+        }
+
+        Some(Commands::Lecture { audio , print}) => {
+            if let Some(audio) = audio {
+                let summary_result = ai::Summary::transcribe_and_summarize(audio).await;
+
+                match summary_result {
+                    Ok(summary) => {
+                        if let Ok(_) = file_handling::export_summary(&summary) {
+
+                            if *print {
+                                summary.print();
+                            }
+
+                            println!("✅ Lecture summary_result exported to {}/summaries", config::Config::load().unwrap().notera_files_path);
+                        }
+                    }
+                    Err(e) => {
+                        println!("Error: {}", e);
+                    }
+                }
+            }
+
+            Ok(())
         }
 
         Some(Commands::Config) => setup::open_config(),
