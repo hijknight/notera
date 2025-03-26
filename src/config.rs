@@ -18,11 +18,17 @@ impl Config {
     pub fn load() -> Result<Self> {
         let config_path = get_config_path();
 
+        let mut files_path = dirs::document_dir().unwrap_or_else(|| PathBuf::from("."));
+        files_path.push("notera");
+
+        let files_path = files_path.to_str().unwrap().to_string();
+        let app_support_path = config_path.parent().unwrap().to_str().unwrap().to_string();
+
         if !config_path.exists() {
             let default_config = Config {
                 editor: "vim".to_string(),
-                note_db_directory: format!("{}/.local/share/notera", std::env::var("HOME").unwrap_or_else(|_| ".".to_string())),
-                notera_files_path: format!("{}/Documents/notera", std::env::var("HOME").unwrap_or_else(|_| ".".to_string())),
+                note_db_directory: app_support_path, // should be app_support /notera
+                notera_files_path: files_path,// format!("{}/Documents/notera", std::env::var("HOME").unwrap_or_else(|_| ".".to_string())),
                 export_format: "md".to_string(),
             };
 
