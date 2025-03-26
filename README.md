@@ -76,6 +76,7 @@ notera --help
   - `transcribe <FLAGS>`
     - Options:
       - `--audio <AUDIO_FILE_PATH>`: transcribe an audio file
+      - Allowed file formats: `.m4a`
   - `lecture <FLAGS>`
     - Options:
       - `--audio <AUDIO_FILE_PATH>`: transcribe and summarize an audio file (targeted at lectures)
