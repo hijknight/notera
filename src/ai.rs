@@ -20,16 +20,6 @@ pub struct Summary {
     source: String,
     pub content: String,
 }
-// TODO:
-// fn start_fun_spinner(spinner_type: Spinners) {
-//     let mut sp1 = Spinner::new(spinner_type.clone(), "Contacting AI...".into());
-//     sleep(Duration::from_millis(500));
-//     sp1.stop();
-//
-//     let mut sp2 = Spinner::new(spinner_type.clone(), "Processing new info...".into());
-//     sleep(Duration::from_millis(300));
-//     sp2.stop();
-// }
 
 impl Summary {
     async fn prompt_ai(source: &str, system_prompt: &str, user_prompt: &str) -> Result<Self> {
@@ -109,13 +99,21 @@ impl Summary {
         Ok(ai_response)
     }
 
-    pub async fn from_note(title: &str) -> Result<Self> {
+    pub async fn from_note(title: &str, prompt: Option<&str>) -> Result<Self> {
         let note_content = storage::read_note(title)?.join("\n\n");
+
+        let user_prompt: String = match prompt {
+            Some(prompt) => format!("Here is the note: {}.\n\n and here is the prompt given b the user: {}", note_content, prompt),
+            None => note_content,
+        };
 
         let ai_response = Self::prompt_ai(
             "note",
-            "You are an ai bot that summarizes a given notes contents. Making it look nicer, organizing, etc. Return markdown text without anything else",
-            &note_content
+            "You are an ai bot that summarizes a given notes contents.\
+             Making it look nicer, organizing, etc. Return markdown text without anything else unless the user is giving you a prompt. \
+             Sometimes, the user will give you a prompt too in addition to the ntoes contents. \
+             The prompt and the notes contents are clearly specified as being two different things.",
+            &user_prompt
         ).await?;
 
         Ok(ai_response)
@@ -125,7 +123,10 @@ impl Summary {
 
         let ai_response = Self::prompt_ai(
             "prompt",
-            "You are an ai bot that a given prompt (or maybe a piece of text) by a user. Try to figure out whether or not the user is giving you a piece of text to summarize, or just a normal chatgpt prompt. If it is a normal chatgpt prompt, you shouldn't say anything that can be responded too, like 'how can i help you today'. Because each prompt is independent.",
+            "You are an ai bot that a given prompt (or maybe a piece of text) by a user. \
+            Try to figure out whether or not the user is giving you a piece of text to summarize, or just a normal chatgpt prompt. \
+            If it is a normal chatgpt prompt, you shouldn't say anything that can be responded too, like 'how can i help you today'. \
+            Because each prompt is independent.",
             text
         ).await?;
 
@@ -139,7 +140,9 @@ impl Summary {
 
         let ai_response = Self::prompt_ai(
             "list",
-            "You are an ai bot that is given a list of something; could be a todo list, grocery list, or a list that could be in someones planner. The user will expect a nicer, more organized version of the list back (in markdown) with all of the information retained",
+            "You are an ai bot that is given a list of something; could be a todo list, grocery list, \
+            or a list that could be in someones planner. The user will expect a nicer, more organized version of the list back \
+            (in markdown) with all of the information retained",
             &file_contents
         ).await?;
 
@@ -151,9 +154,32 @@ impl Summary {
 
         let ai_response = Self::prompt_ai(
             "transcript",
-            "You are an ai bot that is given a transcript from a lecture or a presentation, and then takes notes on it, as a college student would if they were sitting and taking the notes in the class. However, if the transcription does not seem to have anything pertaining to a college lecture, just summarize it normally. Only do this if you are 100% sure that the transcript is a lecture or presentation.",
+            "You are an ai bot that is given a transcript from a lecture or a presentation, \
+            and then takes notes on it, as a college student would if they were sitting and taking the notes in the class. \
+            However, if the transcription does not seem to have anything pertaining to a college lecture, just summarize it normally. \
+            Only do this if you are 100% sure that the transcript is a lecture or presentation.",
             &transcript.content
         ).await?;
+
+        Ok(ai_response)
+    }
+
+
+
+    pub async fn from_interview(interview_audio: &str) -> Result<Self> {
+        let transcript = Transcript::from_audio(interview_audio).await?;
+
+        let ai_response = Self::prompt_ai(
+            "interview",
+            "You are an ai bot that is given an interview transcript, and you will see a very structured way of doing things, and all i need you to do is take the transcript,\
+             and then put them in a the (somewhat) clearly defined seperations. It is for a theology project, called the authentic happiness project. Here are the question that are asked: \
+             What does the pursuit of happiness mean to you?,\
+              What role does you faith in god play in your pursuit of happiness?, \
+              What role does morality play in your pursuit of happiness?\
+              Just take the interview transcript and put them in the correct sections.",
+            &transcript.content
+        ).await?;
+
 
         Ok(ai_response)
     }
@@ -178,7 +204,71 @@ pub struct Transcript {
 }
 
 impl Transcript {
+
+    pub async fn from_audio_local(audio_file: &str) -> Result<Self> {
+
+        if !is_local_server_running().await {
+            println!("\nNo local server running, to use `--local`, you must run your own python server!\n\
+            You can find an example python server here: https://github.com/hijknight/notera/tree/ai-beta\n");
+
+            return Err(NoteraError::Other("No local server running".to_string()));
+        }
+
+        let client = Client::new();
+
+        let mut sp = Spinner::new(
+            Spinners::Dots9,
+            "Transcribing... (time dependent on length)".into(),
+        );
+
+
+        let mut file = File::open(audio_file)?;
+        let mut audio_data = Vec::new();
+        file.read_to_end(&mut audio_data)
+            .map_err(|err| NoteraError::FileSystem(err, None))?;
+
+        let file_part = reqwest::multipart::Part::bytes(audio_data)
+            .file_name("audio.m4a")
+            .mime_str("audio/mpeg")
+            .map_err(|err| NoteraError::Other(err.to_string()))?;
+
+        let form = reqwest::multipart::Form::new()
+            .part("file", file_part);
+
+        let response = client
+            .post("http://localhost:5010/transcribe")
+            .multipart(form)
+            .send()
+            .await
+            .map_err(|err| NoteraError::Reqwest(err))?;
+
+
+        sp.stop();
+
+        let response_text = response
+            .text()
+            .await
+            .map_err(|err| NoteraError::Other(format!("notera: error: {err}")))?;
+
+        let json: Value = serde_json::from_str(&response_text).map_err(|err| NoteraError::SerdeJson(err))?;
+
+        println!("\n");
+
+        if let Some(transcript) = json.get("text") {
+            Ok(Transcript {
+                source: "local audio".to_string(),
+                content: transcript.to_string(),
+            })
+        } else {
+            Err(NoteraError::AI("Unable to find text in json".to_string()))
+        }
+
+    }
+
+
     pub async fn from_audio(audio_file: &str) -> Result<Self> {
+
+
         let openai_api_key: String = env::var(ENV_VAR).unwrap_or_else(|_| {
             println!("Please set the {} environment variable", ENV_VAR);
             "No api key found".to_string()
@@ -239,5 +329,19 @@ impl Transcript {
     pub fn print(&self) {
         println!("Transcript source: {}\n", self.source);
         println!("{}", self.content);
+    }
+}
+
+async fn is_local_server_running() -> bool {
+    let client = Client::new();
+
+    let response = client
+        .get("http://localhost:5010/transcribe")
+        .send()
+        .await;
+
+    match response {
+        Ok(_) => true,
+        Err(_) => false,
     }
 }
