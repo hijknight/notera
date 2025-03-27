@@ -113,18 +113,21 @@ enum Commands {
     /// summarize a given notera note or a text file
     #[command(about = "summarize a given text file or note with ai")]
     Summarize {
+
         #[arg(
             short,
             long,
             help = "tell notera whether to export the summary to the notera/summaries folder or not"
         )]
         export: bool,
+
         #[arg(
             short,
             long,
             help = "tell notera whether to print the summary to the terminal or not"
         )]
         print: bool,
+
         #[arg(
             short,
             long,
@@ -132,6 +135,7 @@ enum Commands {
             help = "summarize a text file (.txt, .md)"
         )]
         file: Option<String>,
+
         #[arg(
             short,
             long,
@@ -139,13 +143,15 @@ enum Commands {
             help = "summarize a notera note given a title"
         )]
         note: Option<String>,
+
         #[arg(
             short,
             long,
-            value_name = "TEXT",
+            value_name = "PROMPT",
             help = "quickly summarize a piece of text"
         )]
         text: Option<String>,
+
         #[arg(
             short,
             long,
@@ -153,6 +159,14 @@ enum Commands {
             help = "make a list nicer from a file (.txt, .md)"
         )]
         list: Option<String>,
+
+        #[arg(
+            short,
+            long,
+            value_name = "AUDIO_FILE",
+            help = "tell notera whether to print the summary to the terminal or not"
+        )]
+        audio: Option<String>,
     },
 
     /// transcribe a given audio file and export it notera/transcripts
@@ -175,30 +189,6 @@ enum Commands {
             long,
             value_name = "AUDIO_FILE_PATH",
             help = "transcribe a given audio file (Only .m4a - Voice memos, quick time player)"
-        )]
-        audio: Option<String>,
-    },
-
-    /// transcribe and summarize a recorded lecture
-    #[command(about = "transcribe and summarize a lecture")]
-    Lecture {
-        #[arg(
-            short,
-            long,
-            help = "tell notera whether to export the summary to the notera/summaries folder or not"
-        )]
-        export: bool,
-        #[arg(
-            short,
-            long,
-            help = "tell notera whether to print the summary to the terminal or not"
-        )]
-        print: bool,
-        #[arg(
-            short,
-            long,
-            value_name = "AUDIO_FILE_PATH",
-            help = "transcribe and summarize a given audio file (.m4a - Voice memos, quick time player)"
         )]
         audio: Option<String>,
     },
@@ -309,6 +299,7 @@ async fn main() {
             print,
             list,
             export,
+            audio,
         }) => {
             if let Some(file) = file {
                 if !*print && !*export {
@@ -374,11 +365,11 @@ async fn main() {
                 }
 
                 Ok(())
-            } else if let Some(text) = text {
+            } else if let Some(prompt) = text {
                 if !*print && !*export {
                     println!("No flag given for summary to print or export. Use `--print` and/or `--export` to print or export the summary.");
                 } else {
-                    let summary_result = ai::Summary::from_text(text).await;
+                    let summary_result = ai::Summary::from_prompt(prompt).await;
 
                     match summary_result {
                         Ok(summary) => {
@@ -436,10 +427,44 @@ async fn main() {
                     }
                 }
                 Ok(())
+            }  else if let Some(audio) = audio {
+                if !*print && !*export {
+                    println!("No flag given for summary to print or export. Use `--print` and/or `--export` to print or export the summary.");
+                } else {
+                    let summary_result = ai::Summary::from_audio(audio).await;
+
+
+                    match summary_result {
+                        Ok(summary) => {
+                            if *print {
+                                summary.print();
+                            }
+
+                            if *export {
+                                if let Ok(_) = file_handling::export_summary(&summary) {
+                                    println!(
+                                        "Summary exported to {}/summaries",
+                                        config::Config::load().unwrap().notera_files_path
+                                    );
+                                } else {
+                                    println!(
+                                        "Unable to export summary. Please check your permissions."
+                                    );
+                                }
+                            }
+                        }
+                        Err(e) => {
+                            println!("Error: {}", e);
+                        }
+                    }
+                }
+                Ok(())
             } else {
-                println!("No valid import option provided. Use `--file`, `--note`, `--text` or `--list`.");
+                println!("No valid import option provided. Use `--file`, `--note`, `--prompt` or `--list`.");
                 Ok(())
             }
+
+
         }
 
         Some(Commands::Transcribe { audio, print, export, }) => {
@@ -464,47 +489,6 @@ async fn main() {
                                 } else {
                                     println!(
                                         "Unable to export transcript. Please check your permissions."
-                                    );
-                                }
-                            }
-                        }
-                        Err(e) => {
-                            println!("Error: {}", e);
-                        }
-                    }
-                }
-            }
-
-            Ok(())
-        }
-
-        Some(Commands::Lecture {
-            audio,
-            print,
-            export,
-        }) => {
-            if let Some(audio) = audio {
-                if !*print && !*export {
-                    println!("No flag given for summary to print or export. Use `--print` and/or `--export` to print or export the summary.");
-                } else {
-                    let summary_result = ai::Summary::transcribe_and_summarize(audio).await;
-
-                    match summary_result {
-                        Ok(summary) => {
-
-                            if *print {
-                                summary.print();
-                            }
-
-                            if *export {
-                                if let Ok(_) = file_handling::export_summary(&summary) {
-                                    println!(
-                                        "Summary exported to {}/summaries",
-                                        config::Config::load().unwrap().notera_files_path
-                                    );
-                                } else {
-                                    println!(
-                                        "Unable to export summary. Please check your permissions."
                                     );
                                 }
                             }
