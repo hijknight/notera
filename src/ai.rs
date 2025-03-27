@@ -121,10 +121,10 @@ impl Summary {
         Ok(ai_response)
     }
 
-    pub async fn from_text(text: &str) -> Result<Self> {
+    pub async fn from_prompt(text: &str) -> Result<Self> {
 
         let ai_response = Self::prompt_ai(
-            "text",
+            "prompt",
             "You are an ai bot that a given prompt (or maybe a piece of text) by a user. Try to figure out whether or not the user is giving you a piece of text to summarize, or just a normal chatgpt prompt. If it is a normal chatgpt prompt, you shouldn't say anything that can be responded too, like 'how can i help you today'. Because each prompt is independent.",
             text
         ).await?;
