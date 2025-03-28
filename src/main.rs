@@ -248,8 +248,8 @@ async fn main() {
                     println!("No flags given for summary to print or export. Use `--print` and/or `--export` to print or export the summary.");
                 } else {
                     let summary_result = match prompt {
-                        Some(prompt) => ai::Summary::from_file(file, Some(prompt)),
-                        None => ai::Summary::from_file(file, None),
+                        Some(prompt) => ai::Summary::from_file(file, Some(prompt), local),
+                        None => ai::Summary::from_file(file, None, local),
                     }.await;
 
                     match summary_result {
@@ -283,8 +283,8 @@ async fn main() {
                     println!("No flag given for summary to print or export. Use `--print` and/or `--export` to print or export the summary.");
                 } else {
                     let summary_result = match prompt {
-                        Some(prompt) => ai::Summary::from_note(note, Some(prompt)),
-                        None => ai::Summary::from_note(note, None),
+                        Some(prompt) => ai::Summary::from_note(note, Some(prompt), local),
+                        None => ai::Summary::from_note(note, None, local),
                     }.await;
 
                     match summary_result {
@@ -383,7 +383,7 @@ async fn main() {
                 if !*print && !*export {
                     println!("No flag given for summary to print or export. Use `--print` and/or `--export` to print or export the summary.");
                 } else {
-                    let summary_result = ai::Summary::from_prompt(prompt).await;
+                    let summary_result = ai::Summary::from_prompt(prompt, local).await;
 
                     match summary_result {
                         Ok(summary) => {
