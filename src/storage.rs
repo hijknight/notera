@@ -99,27 +99,31 @@ pub fn read_notes() -> Result<Vec<String>> {
     Ok(notes)
 }
 
-pub fn read_note(title: &str) -> Result<Vec<String>> {
+pub fn read_note(title: &str) -> Result<String> {
     let conn = init_db()?;
 
     let mut stmt = conn.prepare("SELECT title, content, timestamp FROM notes WHERE title = ?1")
         .map_err(|e| NoteraError::Database(e))?;
 
-    let notes_iter = stmt.query_map([title], |row| {
+    let note_result = stmt.query_row([title], |row| {
         let title: String = row.get(0)?;
         let content: String = row.get(1)?;
         let timestamp: String = row.get(2)?;
 
         Ok((title, content, timestamp))
-    }).map_err(|e| NoteraError::Database(e))?;
+    }).map_err(|e| NoteraError::Database(e));
 
-    let mut notes = Vec::new();
+    let note = match &note_result {
+        Ok(note) => note,
+        Err(_) => {
+            return Err(NoteraError::Other(format!("Note not found: '{}'", title)));
+        }
+    };
 
-    for note_result in notes_iter {
-        let (title, content, timestamp) = note_result.map_err(|e| NoteraError::Database(e))?;
-        notes.push(format!("📝 Title: {}\n⏳ Created: {}\n\n{}\n", title, timestamp, content));
-    }
-    Ok(notes)
+
+    let (title, content, timestamp) = note;
+
+    Ok(format!("📝 Title: {}\n⏳ Created: {}\n\n{}", title, timestamp, content))
 }
 
 pub fn edit_note(title: &str) -> Result<()> {
