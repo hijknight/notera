@@ -88,7 +88,7 @@ enum Commands {
 
     /// summarize a given notera note or a text file
     #[command(about = "summarize a given text file or note with ai")]
-    Summarize {
+    Chat {
 
         #[arg(short='o', long, value_name = "PROMPT", help = "give notera a custom prompt, or add a description to something you are doing like `summarize --note <TITLE> --prompt <PROMPT>`")]
         prompt: Option<String>,
@@ -98,16 +98,21 @@ enum Commands {
 
         #[arg(short, long, value_name = "TITLE", help = "summarize a notera note given a title")]
         note: Option<String>,
+        
+        #[arg(short, long, help = "tell notera whether to export the summary to the notera/summaries folder or not")]
+        export: bool,
 
-        #[arg(short, long, value_name = "AUDIO_FILE", help = "tell notera whether to print the summary to the terminal or not")]
-        audio: Option<String>,
-
-        // TODO: remove after project
-        #[arg(long, value_name = "AUDIO_FILE", help = "for authentic happiness project")]
-        interview: Option<String>,
-
-        #[arg(short='L', long, help = "specify whether or not to transcribe the file locally or not. MUST RUN OWN SERVER")]
-        local: bool,
+        #[arg(short, long, help = "tell notera whether to print the summary to the terminal or not")]
+        print: bool,
+        
+    },
+    
+    Image {
+        #[arg(short, long, value_name = "IMAGE_FILE", help = "summarize an image file (.jpg, .png), optionally add a prompt")]
+        file: Option<String>,
+        
+        #[arg(short='o', long, value_name = "PROMPT", help = "give notera a custom prompt, or add a description to something you are doing like `summarize --note <TITLE> --prompt <PROMPT>`")]
+        prompt: Option<String>,
 
         #[arg(short, long, help = "tell notera whether to export the summary to the notera/summaries folder or not")]
         export: bool,
@@ -118,19 +123,22 @@ enum Commands {
 
     /// transcribe a given audio file and export it notera/transcripts
     #[command(about = "transcribe an audio file with openai's whisper")]
-    Transcribe {
+    Audio {
 
+        #[arg(short, long, value_name = "AUDIO_FILE_PATH", help = "summarize an audio file (.m4a, .mp3, .wav)")]
+        summarize: Option<String>,
+        
         #[arg(short, long, value_name = "AUDIO_FILE_PATH", help = "transcribe a given audio file (Only .m4a - Voice memos, quick time player)")]
-        audio: Option<String>,
+        transcribe: Option<String>,
+
+        #[arg(short='o', long, value_name = "PROMPT", help = "give notera a custom prompt, or add a description to something you are doing like `audio --summarize <AUDIO_FILE_PATH> --prompt <PROMPT>`")]
+        prompt: Option<String>,
 
         #[arg(short, long, help = "tell notera whether to export the transcript to the notera/transcripts folder or not")]
         export: bool,
 
         #[arg(short, long, help = "tell notera whether to print the transcript to the terminal or not")]
         print: bool,
-
-        #[arg(short='L', long, help = "DEV AND GITHUB ONLY: specify if you want to transcribe the given audio file locally")]
-        local: bool,
 
     },
 
@@ -170,8 +178,8 @@ async fn main() {
                 }
             } else if let Some(note) = note {
                 match storage::read_note(note) {
-                    Ok(notes) => {
-                        println!("{}", notes.join("\n\n"));
+                    Ok(note) => {
+                        println!("{}", note);
                         Ok(())
                     }
                     Err(e) => Err(e),
@@ -233,23 +241,22 @@ async fn main() {
             }
         }
 
-        Some(Commands::Summarize {
+        Some(Commands::Chat {
             file,
             note,
+
             print,
             export,
-            audio,
-            interview,
+            
             prompt,
-            local,
         }) => {
             if let Some(file) = file {
                 if !*print && !*export {
                     println!("No flags given for summary to print or export. Use `--print` and/or `--export` to print or export the summary.");
                 } else {
                     let summary_result = match prompt {
-                        Some(prompt) => ai::Summary::from_file(file, Some(prompt), local),
-                        None => ai::Summary::from_file(file, None, local),
+                        Some(prompt) => ai::Completion::from_file(file, Some(prompt)),
+                        None => ai::Completion::from_file(file, None),
                     }.await;
 
                     match summary_result {
@@ -259,9 +266,9 @@ async fn main() {
                             }
 
                             if *export {
-                                if let Ok(_) = file_handling::export_summary(&summary) {
+                                if let Ok(_) = file_handling::export_completion(&summary) {
                                     println!(
-                                        "Summary exported to {}/summaries",
+                                        "Completion exported to {}/summaries",
                                         config::Config::load().unwrap().notera_files_path
                                     );
                                 } else {
@@ -283,8 +290,8 @@ async fn main() {
                     println!("No flag given for summary to print or export. Use `--print` and/or `--export` to print or export the summary.");
                 } else {
                     let summary_result = match prompt {
-                        Some(prompt) => ai::Summary::from_note(note, Some(prompt), local),
-                        None => ai::Summary::from_note(note, None, local),
+                        Some(prompt) => ai::Completion::from_note(note, Some(prompt)),
+                        None => ai::Completion::from_note(note, None),
                     }.await;
 
                     match summary_result {
@@ -294,9 +301,9 @@ async fn main() {
                             }
 
                             if *export {
-                                if let Ok(_) = file_handling::export_summary(&summary) {
+                                if let Ok(_) = file_handling::export_completion(&summary) {
                                     println!(
-                                        "Summary exported to {}/summaries",
+                                        "Completion exported to {}/summaries",
                                         config::Config::load().unwrap().notera_files_path
                                     );
                                 } else {
@@ -312,78 +319,12 @@ async fn main() {
                     }
                 }
 
-                Ok(())
-            } else if let Some(audio) = audio {
-                if !*print && !*export {
-                    println!("No flag given for summary to print or export. Use `--print` and/or `--export` to print or export the summary.");
-                } else {
-                    let summary_result = match prompt {
-                        Some(prompt) => ai::Summary::from_audio(audio, Some(prompt), local),
-                        None => ai::Summary::from_audio(audio, None, local),
-                    }.await;
-
-
-                    match summary_result {
-                        Ok(summary) => {
-                            if *print {
-                                summary.print();
-                            }
-
-                            if *export {
-                                if let Ok(_) = file_handling::export_summary(&summary) {
-                                    println!(
-                                        "\nSummary exported to {}/summaries",
-                                        config::Config::load().unwrap().notera_files_path
-                                    );
-                                } else {
-                                    println!(
-                                        "Unable to export summary. Please check your permissions."
-                                    );
-                                }
-                            }
-                        }
-                        Err(e) => {
-                            println!("Error: {}", e);
-                        }
-                    }
-                }
-                Ok(())
-            } else if let Some(interview) = interview {
-                if !*print && !*export {
-                    println!("No flag given for summary to print or export. Use `--print` and/or `--export` to print or export the summary.");
-                } else {
-                    let summary_result = ai::Summary::from_interview(interview).await;
-
-                    match summary_result {
-                        Ok(summary) => {
-                            if *print {
-                                summary.print();
-                            }
-
-                            if *export {
-                                if let Ok(_) = file_handling::export_summary(&summary) {
-                                    println!(
-                                        "Summary exported to {}/summaries",
-                                        config::Config::load().unwrap().notera_files_path
-                                    );
-                                } else {
-                                    println!(
-                                        "Unable to export summary. Please check your permissions."
-                                    );
-                                }
-                            }
-                        }
-                        Err(e) => {
-                            println!("Error: {}", e);
-                        }
-                    }
-                }
                 Ok(())
             } else if let Some(prompt) = prompt {
                 if !*print && !*export {
                     println!("No flag given for summary to print or export. Use `--print` and/or `--export` to print or export the summary.");
                 } else {
-                    let summary_result = ai::Summary::from_prompt(prompt, local).await;
+                    let summary_result = ai::Completion::from_prompt(prompt).await;
 
                     match summary_result {
                         Ok(summary) => {
@@ -392,14 +333,14 @@ async fn main() {
                             }
 
                             if *export {
-                                if let Ok(_) = file_handling::export_summary(&summary) {
+                                if let Ok(_) = file_handling::export_completion(&summary) {
                                     println!(
-                                        "Summary exported to {}/summaries",
+                                        "✅ Completion exported to {}/summaries",
                                         config::Config::load().unwrap().notera_files_path
                                     );
                                 } else {
                                     println!(
-                                        "Unable to export summary. Please check your permissions."
+                                        "⚠️ Unable to export summary. Please check your permissions."
                                     );
                                 }
                             }
@@ -412,23 +353,17 @@ async fn main() {
 
                 Ok(())
             } else {
-                println!("No valid import option provided. Use `--file`, `--note`, `--text` or `--list`.");
+                println!("⚠️ No valid import option provided. Use `--file`, `--note`, `--prompt`.");
                 Ok(())
             }
-
-
         }
 
-        Some(Commands::Transcribe { audio, print, export, local ,}) => {
-            if let Some(audio) = audio {
+        Some(Commands::Audio { summarize, transcribe, print , export , prompt}) => {
+            if let Some(audio) = transcribe {
                 if !*print && !*export {
-                    println!("No flag given for summary to print or export. Use `--print` and/or `--export` to print or export the summary.");
+                    println!("⚠️ No flag given for summary to print or export. Use `--print` and/or `--export` to print or export the summary.");
                 } else {
-                    let transcription_result = if *local {
-                        ai::Transcript::from_audio_local(audio).await
-                    } else {
-                        ai::Transcript::from_audio(audio).await
-                    };
+                    let transcription_result = ai::Transcript::transcribe(audio).await;
 
                     match transcription_result {
                         Ok(transcript) => {
@@ -444,7 +379,7 @@ async fn main() {
                                     );
                                 } else {
                                     println!(
-                                        "Unable to export transcript. Please check your permissions."
+                                        "⚠️ Unable to export transcript. Please check your permissions."
                                     );
                                 }
                             }
@@ -455,10 +390,84 @@ async fn main() {
                     }
                 }
                 Ok(())
+            } else if let Some(audio) = summarize {
+                if !*print && *export {
+                    println!("⚠️ No flag given for summary to print or export. Use `--print` and/or `--export` to print or export the summary.");
+                } else {
+                    let completion = match prompt {
+                        Some(prompt) => ai::Completion::from_audio(audio, Some(prompt)),
+                        None => ai::Completion::from_audio(audio, None),
+                    }.await;
+                    
+                    match completion {
+                        Ok(summary) => {
+                            if *print {
+                                summary.print();
+                            }
+                            
+                            if *export {
+                                if let Ok(_) = file_handling::export_completion(&summary) {
+                                    println!(
+                                        "Completion exported to {}/summaries",
+                                        config::Config::load().unwrap().notera_files_path
+                                    );
+                                } else {
+                                    println!(
+                                        "⚠️ Unable to export transcript. Please check your permissions."
+                                    );
+                                }
+                            }
+                        }
+                        Err(e) => {
+                            println!("Error: {}", e);
+                        }
+                    }
+                    
+                }
+                Ok(())
             } else {
-                println!("No valid import option provided. Use `--audio`.");
+                println!("⚠️ No valid import option provided. Use `--audio`.");
                 Ok(())
             }
+        }
+        
+        Some(Commands::Image { file, prompt, export, print }) => {
+            if let Some(file) = file {
+                if !*print && !*export {
+                    println!("⚠️ No flag given for summary to print or export. Use `--print` and/or `--export` to print or export the summary.");
+                } else {
+                    let completion = match prompt {
+                        Some(prompt) => ai::Completion::from_image("image", file, Some(prompt)),
+                        None => ai::Completion::from_image("image", file, None),
+                    }.await;
+                    
+                    match completion {
+                        Ok(completion) => {
+                            if *print {
+                                completion.print();
+                            }
+
+                            if *export {
+                                if let Ok(_) = file_handling::export_completion(&completion) {
+                                    println!(
+                                        "Completion completion exported to {}/transcripts",
+                                        config::Config::load().unwrap().notera_files_path
+                                    );
+                                } else {
+                                    println!(
+                                        "⚠️ Unable to export chat completion. Please check your permissions."
+                                    );
+                                }
+                            }
+                        }
+                        Err(e) => {
+                            println!("Error: {}", e);
+                        }
+                    }
+                }
+            }
+            
+            Ok(())
         }
 
         Some(Commands::Config) => setup::open_config(),
