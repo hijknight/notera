@@ -1,6 +1,7 @@
 use crate::{error::{ NoteraError, Result }, storage};
 use reqwest::Client;
 use serde_json::{json, Value};
+use serde::Deserialize;
 use spinners::{Spinner, Spinners};
 use std::{
     env,
@@ -10,7 +11,11 @@ use std::{
 
 const ENV_VAR: &str = "OPENAI_API_KEY";
 const MODEL: &str = "gpt-4o-mini";
-const URL: &str = "https://api.openai.com/v1/chat/completions";
+const GPT_URL: &str = "https://api.openai.com/v1/chat/completions";
+const WHISPER_URL: &str = "https://api.openai.com/v1/audio/transcriptions";
+const HOME_SERVER_URL_AUDIO: &str = "http://100.66.140.102:5010/transcribe";
+const HOME_SERVER_URL_PROMPT: &str = "http://100.66.140.102:5010/prompt";
+
 const SPINNER_TYPE: Spinners = Spinners::BouncingBar;
 #[derive(Debug, Clone, PartialEq)]
 pub struct Summary {
@@ -18,9 +23,51 @@ pub struct Summary {
     pub content: String,
 }
 
-
+#[derive(Deserialize)]
+struct AiResponse {
+    content: String,
+}
 
 impl Summary {
+
+    async fn prompt_ai_local(source: &str, system_prompt: &str, user_prompt: &str) -> Result<Self> {
+        let client = Client::new();
+
+        if !is_local_server_running().await {
+            println!("\nNo local server running, to use `--local`, you must run your own python server!\n\
+            You can find an example python server here: https://github.com/hijknight/notera/tree/ai-beta\n");
+        }
+
+        let mut sp = Spinner::new(
+            SPINNER_TYPE,
+            "Working with ai...".into(),
+        );
+
+        let body = json!({
+            "model": MODEL,
+            "system_prompt": system_prompt,
+            "user_prompt": user_prompt
+        });
+
+        let response = client
+            .post(HOME_SERVER_URL_PROMPT)
+            .json(&body)
+            .send()
+            .await
+            .map_err(|e| NoteraError::Reqwest(e))?;
+
+        sp.stop();
+
+        println!("\n");
+
+        let ai_response = response.json::<AiResponse>().await
+            .map_err(|e| NoteraError::Reqwest(e))?;
+
+        Ok(Summary {
+            source: source.to_string(),
+            content: ai_response.content,
+        })
+    }
     async fn prompt_ai(source: &str, system_prompt: &str, user_prompt: &str) -> Result<Self> {
         let client = Client::new();
 
@@ -49,7 +96,7 @@ impl Summary {
         });
 
         let response = client
-            .post(URL)
+            .post(GPT_URL)
             .header("Authorization", format!("Bearer {}", openai_api_key))
             .json(&body)
             .send()
@@ -82,31 +129,40 @@ impl Summary {
         } else {
             Err(NoteraError::AI("Unable to find choice message".to_string()))
         }
-
     }
 
-    pub async fn from_file(file_path: &str, prompt: Option<&str>) -> Result<Self> {
+    pub async fn from_file(file_path: &str, prompt: Option<&str>, local: &bool) -> Result<Self> {
         let file_contents =
             fs::read_to_string(file_path).map_err(|err| NoteraError::FileSystem(err, None))?;
+
+        let system_prompt = "You are an ai bot that summarize a given text files contents. You should recognize the \
+            file as being a transcript, maybe notes, or a list. FOr this function, the user has the ability to also \
+            supply an optional prompt along with the file's contents. The prompt and the file's contents are clearly \
+            specified as being two different things.";
 
         let user_prompt: String = match prompt {
             Some(prompt) => format!("Here is the file's contents: {}.\n\n and here is the prompt given by the user: {}", file_contents, prompt),
             None => file_contents,
         };
 
-        let ai_response = Self::prompt_ai(
-            "file",
-            "You are an ai bot that summarize a given text files contents. You should recognize the \
-            file as being a transcript, maybe notes, or a list. FOr this function, the user has the ability to also \
-            supply an optional prompt along with the file's contents. The prompt and the file's contents are clearly \
-            specified as being two different things.",
-            &user_prompt)
-            .await?;
+        let ai_response = if *local {
+            Self::prompt_ai_local(
+                "file",
+                system_prompt,
+                &user_prompt
+            ).await
+        } else {
+            Self::prompt_ai(
+                "file",
+                system_prompt,
+                &user_prompt,
+            ).await
+        }?;
 
         Ok(ai_response)
     }
 
-    pub async fn from_note(title: &str, prompt: Option<&str>) -> Result<Self> {
+    pub async fn from_note(title: &str, prompt: Option<&str>, local: &bool) -> Result<Self> {
         let note_content = storage::read_note(title)?.join("\n\n");
 
         let user_prompt: String = match prompt {
@@ -114,28 +170,48 @@ impl Summary {
             None => note_content,
         };
 
-        let ai_response = Self::prompt_ai(
-            "note",
-            "You are an ai bot that summarizes a given notes contents.\
+        let system_prompt: &str = "You are an ai bot that summarizes a given notes contents.\
              Making it look nicer, organizing, etc. Return markdown text without anything else unless the user is giving you a prompt. \
              Sometimes, the user will give you a prompt too in addition to the notes contents. \
-             The prompt and the notes contents are clearly specified as being two different things.",
-            &user_prompt
-        ).await?;
+             The prompt and the notes contents are clearly specified as being two different things.";
+
+        let ai_response = if *local {
+            Self::prompt_ai_local(
+                "note",
+                system_prompt,
+                &user_prompt
+            ).await
+        } else {
+            Self::prompt_ai(
+                "note",
+                system_prompt,
+                &user_prompt,
+            ).await
+        }?;
 
         Ok(ai_response)
     }
 
-    pub async fn from_prompt(prompt: &str) -> Result<Self> {
+    pub async fn from_prompt(prompt: &str, local: &bool) -> Result<Self> {
 
-        let ai_response = Self::prompt_ai(
-            "prompt",
-            "You are an ai bot that a given prompt (or maybe a piece of text) by a user. \
+        let system_prompt: &str = "You are an ai bot that a given prompt (or maybe a piece of text) by a user. \
             Try to figure out whether or not the user is giving you a piece of text to summarize, or just a normal chatgpt prompt. \
             If it is a normal chatgpt prompt, you shouldn't say anything that can be responded too, like 'how can i help you today'. \
-            Because each prompt is independent.",
-            prompt
-        ).await?;
+            Because each prompt is independent.";
+
+        let ai_response = if *local {
+            Self::prompt_ai_local(
+                "prompt",
+                system_prompt,
+                prompt
+            ).await
+        } else {
+            Self::prompt_ai(
+                "prompt",
+                system_prompt,
+                prompt
+            ).await
+        }?;
 
         Ok(ai_response)
     }
@@ -163,12 +239,12 @@ impl Summary {
     pub async fn from_audio(audio_file: &str, prompt: Option<&str>, local: &bool) -> Result<Self> {
 
         let transcript = if *local {
-            Transcript::from_audio_local(audio_file).await?
+            Transcript::from_audio_local(audio_file).await
         } else {
-            Transcript::from_audio(audio_file).await?
-        };
+            Transcript::from_audio(audio_file).await
+        }?;
 
-        let summary = Summary::from_transcript(&transcript, prompt).await?;
+        let summary = Summary::from_transcript(&transcript, prompt, local).await?;
 
         Ok(summary)
     }
@@ -178,21 +254,32 @@ impl Summary {
         println!("{}", self.content);
     }
 
-    async fn from_transcript(transcript: &Transcript, prompt: Option<&str>) -> Result<Self> {
+    async fn from_transcript(transcript: &Transcript, prompt: Option<&str>, local: &bool) -> Result<Self> {
 
         let user_prompt: String = match prompt {
-            Some(prompt) => prompt.to_string(),
+            Some(prompt) => format!("\n\n Here is the prompt given by the user: {}, Here is the transcript: {}.", prompt, transcript.content),
             None => transcript.content.clone(),
         };
 
-        let ai_response = Self::prompt_ai(
-            "transcript",
-            "You are an ai bot that is given a transcript from a lecture or a presentation, \
+        let system_prompt: &str = "You are an ai bot that is given a transcript from a lecture or a presentation, \
             and then takes notes on it, as a college student would if they were sitting and taking the notes in the class. \
             However, if the transcription does not seem to have anything pertaining to a college lecture, just summarize it normally. \
-            Only do this if you are 100% sure that the transcript is a lecture or presentation. Sometimes, the user will give you a prompt too in addition to the transcript.",
-            &user_prompt
-        ).await?;
+            Only do this if you are 100% sure that the transcript is a lecture or presentation. \
+            Sometimes, the user will give you a prompt too in addition to the transcript.";
+
+        let ai_response = if *local {
+            Self::prompt_ai_local(
+                "transcript",
+                system_prompt,
+                &user_prompt
+            ).await
+        } else {
+            Self::prompt_ai(
+                "transcript",
+                system_prompt,
+                &user_prompt
+            ).await
+        }?;
 
         Ok(ai_response)
     }
@@ -202,6 +289,11 @@ impl Summary {
 pub struct Transcript {
     pub source: String,
     pub content: String,
+}
+
+#[derive(Deserialize)]
+struct WhisperResponse {
+    text: String,
 }
 
 impl Transcript {
@@ -222,7 +314,6 @@ impl Transcript {
             "Transcribing... (time dependent on length)".into(),
         );
 
-
         let mut file = File::open(audio_file)?;
         let mut audio_data = Vec::new();
         file.read_to_end(&mut audio_data)
@@ -237,7 +328,7 @@ impl Transcript {
             .part("file", file_part);
 
         let response = client
-            .post("http://localhost:5010/transcribe")
+            .post(HOME_SERVER_URL_AUDIO)
             .multipart(form)
             .send()
             .await
@@ -246,23 +337,16 @@ impl Transcript {
 
         sp.stop();
 
-        let response_text = response
-            .text()
-            .await
-            .map_err(|err| NoteraError::Other(format!("notera: error: {err}")))?;
-
-        let json: Value = serde_json::from_str(&response_text).map_err(|err| NoteraError::SerdeJson(err))?;
-
         println!("\n");
 
-        if let Some(transcript) = json.get("text") {
-            Ok(Transcript {
-                source: "local audio".to_string(),
-                content: transcript.to_string(),
-            })
-        } else {
-            Err(NoteraError::AI("Unable to find text in json".to_string()))
-        }
+        let ai_response = response.json::<WhisperResponse>().await
+            .map_err(|err| NoteraError::Reqwest(err))?;
+
+        Ok(Transcript {
+            source: "audio".to_string(),
+            content: ai_response.text,
+        })
+
 
     }
 
@@ -308,7 +392,7 @@ impl Transcript {
             .text("model", "whisper-1");
 
         let response = client
-            .post("https://api.openai.com/v1/audio/transcriptions")
+            .post(WHISPER_URL)
             .header("Authorization", format!("Bearer {}", openai_api_key))
             .multipart(form)
             .send()
@@ -347,13 +431,18 @@ impl Transcript {
 async fn is_local_server_running() -> bool {
     let client = Client::new();
 
+
     let response = client
-        .get("http://localhost:5010/transcribe")
+        .get(HOME_SERVER_URL_AUDIO)
         .send()
         .await;
 
     match response {
-        Ok(_) => true,
-        Err(_) => false,
+        Ok(_) => {
+            true
+        }
+        Err(_) => {
+            false
+        }
     }
 }
