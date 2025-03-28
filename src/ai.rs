@@ -6,20 +6,19 @@ use std::{
     env,
     fs::{self, File},
     io::Read,
-    // time::Duration,
-    // thread::sleep,
 };
-
 
 const ENV_VAR: &str = "OPENAI_API_KEY";
 const MODEL: &str = "gpt-4o-mini";
 const URL: &str = "https://api.openai.com/v1/chat/completions";
-
+const SPINNER_TYPE: Spinners = Spinners::BouncingBar;
 #[derive(Debug, Clone, PartialEq)]
 pub struct Summary {
     source: String,
     pub content: String,
 }
+
+
 
 impl Summary {
     async fn prompt_ai(source: &str, system_prompt: &str, user_prompt: &str) -> Result<Self> {
@@ -31,8 +30,8 @@ impl Summary {
         });
 
         let mut sp = Spinner::new(
-            Spinners::Dots9,
-            "Talking with ai...".into(),
+            SPINNER_TYPE,
+            "Working with ai...".into(),
         );
 
         let body = json!({
@@ -86,14 +85,22 @@ impl Summary {
 
     }
 
-    pub async fn from_file(file_path: &str) -> Result<Self> {
+    pub async fn from_file(file_path: &str, prompt: Option<&str>) -> Result<Self> {
         let file_contents =
             fs::read_to_string(file_path).map_err(|err| NoteraError::FileSystem(err, None))?;
 
+        let user_prompt: String = match prompt {
+            Some(prompt) => format!("Here is the file's contents: {}.\n\n and here is the prompt given by the user: {}", file_contents, prompt),
+            None => file_contents,
+        };
+
         let ai_response = Self::prompt_ai(
             "file",
-            "You are an ai bot that summarize a given text files contents",
-            &file_contents)
+            "You are an ai bot that summarize a given text files contents. You should recognize the \
+            file as being a transcript, maybe notes, or a list. FOr this function, the user has the ability to also \
+            supply an optional prompt along with the file's contents. The prompt and the file's contents are clearly \
+            specified as being two different things.",
+            &user_prompt)
             .await?;
 
         Ok(ai_response)
@@ -103,7 +110,7 @@ impl Summary {
         let note_content = storage::read_note(title)?.join("\n\n");
 
         let user_prompt: String = match prompt {
-            Some(prompt) => format!("Here is the note: {}.\n\n and here is the prompt given b the user: {}", note_content, prompt),
+            Some(prompt) => format!("Here is the note: {}.\n\n and here is the prompt given by the user: {}", note_content, prompt),
             None => note_content,
         };
 
@@ -111,7 +118,7 @@ impl Summary {
             "note",
             "You are an ai bot that summarizes a given notes contents.\
              Making it look nicer, organizing, etc. Return markdown text without anything else unless the user is giving you a prompt. \
-             Sometimes, the user will give you a prompt too in addition to the ntoes contents. \
+             Sometimes, the user will give you a prompt too in addition to the notes contents. \
              The prompt and the notes contents are clearly specified as being two different things.",
             &user_prompt
         ).await?;
@@ -119,7 +126,7 @@ impl Summary {
         Ok(ai_response)
     }
 
-    pub async fn from_prompt(text: &str) -> Result<Self> {
+    pub async fn from_prompt(prompt: &str) -> Result<Self> {
 
         let ai_response = Self::prompt_ai(
             "prompt",
@@ -127,52 +134,20 @@ impl Summary {
             Try to figure out whether or not the user is giving you a piece of text to summarize, or just a normal chatgpt prompt. \
             If it is a normal chatgpt prompt, you shouldn't say anything that can be responded too, like 'how can i help you today'. \
             Because each prompt is independent.",
-            text
+            prompt
         ).await?;
 
         Ok(ai_response)
     }
 
-
-    pub async fn from_list_file(file_path: &str) -> Result<Self> {
-
-        let file_contents = fs::read_to_string(file_path).map_err(|err| NoteraError::FileSystem(err, None))?;
-
-        let ai_response = Self::prompt_ai(
-            "list",
-            "You are an ai bot that is given a list of something; could be a todo list, grocery list, \
-            or a list that could be in someones planner. The user will expect a nicer, more organized version of the list back \
-            (in markdown) with all of the information retained",
-            &file_contents
-        ).await?;
-
-        Ok(ai_response)
-
-    }
-
-    async fn from_transcript(transcript: &Transcript) -> Result<Self> {
-
-        let ai_response = Self::prompt_ai(
-            "transcript",
-            "You are an ai bot that is given a transcript from a lecture or a presentation, \
-            and then takes notes on it, as a college student would if they were sitting and taking the notes in the class. \
-            However, if the transcription does not seem to have anything pertaining to a college lecture, just summarize it normally. \
-            Only do this if you are 100% sure that the transcript is a lecture or presentation.",
-            &transcript.content
-        ).await?;
-
-        Ok(ai_response)
-    }
-
-
-
+    // TODO: remove after project
     pub async fn from_interview(interview_audio: &str) -> Result<Self> {
         let transcript = Transcript::from_audio(interview_audio).await?;
 
         let ai_response = Self::prompt_ai(
             "interview",
             "You are an ai bot that is given an interview transcript, and you will see a very structured way of doing things, and all i need you to do is take the transcript,\
-             and then put them in a the (somewhat) clearly defined seperations. It is for a theology project, called the authentic happiness project. Here are the question that are asked: \
+             and then put them in a the (somewhat) clearly defined separations. It is for a theology project, called the authentic happiness project. Here are the question that are asked: \
              What does the pursuit of happiness mean to you?,\
               What role does you faith in god play in your pursuit of happiness?, \
               What role does morality play in your pursuit of happiness?\
@@ -185,15 +160,41 @@ impl Summary {
     }
 
 
-    pub async fn from_audio(audio_file: &str) -> Result<Self> {
-        let transcript = Transcript::from_audio(audio_file).await?;
-        let summary = Summary::from_transcript(&transcript).await?;
+    pub async fn from_audio(audio_file: &str, prompt: Option<&str>, local: &bool) -> Result<Self> {
+
+        let transcript = if *local {
+            Transcript::from_audio_local(audio_file).await?
+        } else {
+            Transcript::from_audio(audio_file).await?
+        };
+
+        let summary = Summary::from_transcript(&transcript, prompt).await?;
+
         Ok(summary)
     }
 
     pub fn print(&self) {
         println!("Summary source: {}\n", self.source);
         println!("{}", self.content);
+    }
+
+    async fn from_transcript(transcript: &Transcript, prompt: Option<&str>) -> Result<Self> {
+
+        let user_prompt: String = match prompt {
+            Some(prompt) => prompt.to_string(),
+            None => transcript.content.clone(),
+        };
+
+        let ai_response = Self::prompt_ai(
+            "transcript",
+            "You are an ai bot that is given a transcript from a lecture or a presentation, \
+            and then takes notes on it, as a college student would if they were sitting and taking the notes in the class. \
+            However, if the transcription does not seem to have anything pertaining to a college lecture, just summarize it normally. \
+            Only do this if you are 100% sure that the transcript is a lecture or presentation. Sometimes, the user will give you a prompt too in addition to the transcript.",
+            &user_prompt
+        ).await?;
+
+        Ok(ai_response)
     }
 }
 
@@ -217,7 +218,7 @@ impl Transcript {
         let client = Client::new();
 
         let mut sp = Spinner::new(
-            Spinners::Dots9,
+            SPINNER_TYPE,
             "Transcribing... (time dependent on length)".into(),
         );
 
@@ -268,6 +269,17 @@ impl Transcript {
 
     pub async fn from_audio(audio_file: &str) -> Result<Self> {
 
+        let metadata = fs::metadata(audio_file)
+            .map_err(|err| NoteraError::FileSystem(err, None))?;
+
+        const MAX_SIZE_BYTES: u64 = 25 * 1024 * 1024;
+
+        if metadata.len() > MAX_SIZE_BYTES {
+            return Err(NoteraError::AI(
+                "Audio file exceeds 25MB limit. \
+                Please use a smaller file or run your local server".to_string()
+            ));
+        }
 
         let openai_api_key: String = env::var(ENV_VAR).unwrap_or_else(|_| {
             println!("Please set the {} environment variable", ENV_VAR);
@@ -277,7 +289,7 @@ impl Transcript {
         let client = Client::new();
 
         let mut sp = Spinner::new(
-            Spinners::Dots9,
+            SPINNER_TYPE,
             "Transcribing... (time dependent on length)".into(),
         );
 
@@ -322,7 +334,7 @@ impl Transcript {
                 content: transcript.to_string(),
             })
         } else {
-            Err(NoteraError::AI("Unable to find choice message".to_string()))
+            Err(NoteraError::AI("If file is larger than 25mb, you need to run your own server locally".to_string()))
         }
     }
 
