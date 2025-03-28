@@ -45,7 +45,9 @@ enum Commands {
 
     /// edit a specific note
     #[command(about = "edit a specific note with `notera edit <TITLE>`", alias = "e")]
-    Edit { title: String },
+    Edit {
+        title: String
+    },
 
     /// rename a note
     #[command(about = "rename a specific note with `notera rename <OLD_TITLE> <NEW_TITLE>`", alias = "r")]
@@ -88,7 +90,7 @@ enum Commands {
     #[command(about = "summarize a given text file or note with ai")]
     Summarize {
 
-        #[arg(short_alias = "o", long, value_name = "PROMPT", help = "give notera a custom prompt, or add a description to something you are doing like `summarize --note <TITLE> --prompt <PROMPT>`")]
+        #[arg(short='o', long, value_name = "PROMPT", help = "give notera a custom prompt, or add a description to something you are doing like `summarize --note <TITLE> --prompt <PROMPT>`")]
         prompt: Option<String>,
 
         #[arg(short, long, value_name = "FILE", help = "summarize a text file (.txt, .md)")]
@@ -97,15 +99,15 @@ enum Commands {
         #[arg(short, long, value_name = "TITLE", help = "summarize a notera note given a title")]
         note: Option<String>,
 
-        #[arg(long, value_name = "FILE", help = "make a list nicer from a file (.txt, .md)")]
-        list: Option<String>,
-
         #[arg(short, long, value_name = "AUDIO_FILE", help = "tell notera whether to print the summary to the terminal or not")]
         audio: Option<String>,
 
         // TODO: remove after project
         #[arg(long, value_name = "AUDIO_FILE", help = "for authentic happiness project")]
         interview: Option<String>,
+
+        #[arg(short='L', long, help = "specify whether or not to transcribe the file locally or not. MUST RUN OWN SERVER")]
+        local: bool,
 
         #[arg(short, long, help = "tell notera whether to export the summary to the notera/summaries folder or not")]
         export: bool,
@@ -235,17 +237,20 @@ async fn main() {
             file,
             note,
             print,
-            list,
             export,
             audio,
             interview,
             prompt,
+            local,
         }) => {
             if let Some(file) = file {
                 if !*print && !*export {
                     println!("No flags given for summary to print or export. Use `--print` and/or `--export` to print or export the summary.");
                 } else {
-                    let summary_result = ai::Summary::from_file(file).await;
+                    let summary_result = match prompt {
+                        Some(prompt) => ai::Summary::from_file(file, Some(prompt)),
+                        None => ai::Summary::from_file(file, None),
+                    }.await;
 
                     match summary_result {
                         Ok(summary) => {
@@ -308,41 +313,14 @@ async fn main() {
                 }
 
                 Ok(())
-            } else if let Some(list) = list {
-                if !*print && !*export {
-                    println!("No flag given for summary to print or export. Use `--print` and/or `--export` to print or export the summary.");
-                } else {
-                    let summary_result = ai::Summary::from_list_file(list).await;
-                    match summary_result {
-                        Ok(summary) => {
-                            if *print {
-                                summary.print();
-                            }
-
-                            if *export {
-                                if let Ok(_) = file_handling::export_summary(&summary) {
-                                    println!(
-                                        "Summary exported to {}/summaries",
-                                        config::Config::load().unwrap().notera_files_path
-                                    );
-                                } else {
-                                    println!(
-                                        "Unable to export summary. Please check your permissions."
-                                    );
-                                }
-                            }
-                        }
-                        Err(e) => {
-                            println!("Error: {}", e);
-                        }
-                    }
-                }
-                Ok(())
             } else if let Some(audio) = audio {
                 if !*print && !*export {
                     println!("No flag given for summary to print or export. Use `--print` and/or `--export` to print or export the summary.");
                 } else {
-                    let summary_result = ai::Summary::from_audio(audio).await;
+                    let summary_result = match prompt {
+                        Some(prompt) => ai::Summary::from_audio(audio, Some(prompt), local),
+                        None => ai::Summary::from_audio(audio, None, local),
+                    }.await;
 
 
                     match summary_result {
@@ -354,7 +332,7 @@ async fn main() {
                             if *export {
                                 if let Ok(_) = file_handling::export_summary(&summary) {
                                     println!(
-                                        "Summary exported to {}/summaries",
+                                        "\nSummary exported to {}/summaries",
                                         config::Config::load().unwrap().notera_files_path
                                     );
                                 } else {
@@ -476,9 +454,11 @@ async fn main() {
                         }
                     }
                 }
+                Ok(())
+            } else {
+                println!("No valid import option provided. Use `--audio`.");
+                Ok(())
             }
-
-            Ok(())
         }
 
         Some(Commands::Config) => setup::open_config(),
