@@ -1,75 +1,29 @@
 use crate::{error::{ NoteraError, Result }, storage};
 use reqwest::Client;
-use serde_json::{json, Value};
-use serde::Deserialize;
-use spinners::{Spinner, Spinners};
+use serde_json::{ json, Value };
+use spinners::{ Spinner, Spinners };
 use std::{
     env,
     fs::{self, File},
     io::Read,
+    path::Path,
 };
-
+use base64::{Engine as _, engine};
 const ENV_VAR: &str = "OPENAI_API_KEY";
-const MODEL: &str = "gpt-4o-mini";
+const CHAT_MODEL: &str = "gpt-4o-mini";
 const GPT_URL: &str = "https://api.openai.com/v1/chat/completions";
 const WHISPER_URL: &str = "https://api.openai.com/v1/audio/transcriptions";
-const HOME_SERVER_URL_AUDIO: &str = "http://100.66.140.102:5010/transcribe";
-const HOME_SERVER_URL_PROMPT: &str = "http://100.66.140.102:5010/prompt";
-
 const SPINNER_TYPE: Spinners = Spinners::BouncingBar;
+
 #[derive(Debug, Clone, PartialEq)]
-pub struct Summary {
+pub struct Completion {
     source: String,
     pub content: String,
 }
 
-impl Summary {
-
-    async fn prompt_ai_local(source: &str, system_prompt: &str, user_prompt: &str) -> Result<Self> {
-        let client = Client::new();
-
-        if !is_local_server_running().await {
-            println!("\nNo local server running, to use `--local`, you must run your own python server!\n\
-            You can find an example python server here: https://github.com/hijknight/notera/tree/ai-beta\n");
-        }
-
-        let mut sp = Spinner::new(
-            SPINNER_TYPE,
-            "Working with ai...".into(),
-        );
-
-        let body = json!({
-            "model": MODEL,
-            "system_prompt": system_prompt,
-            "user_prompt": user_prompt
-        });
-
-        let response = client
-            .post(HOME_SERVER_URL_PROMPT)
-            .json(&body)
-            .send()
-            .await
-            .map_err(|e| NoteraError::Reqwest(e))?;
-
-        sp.stop();
-
-        println!("\n");
-
-        let response_text = response.text().await.map_err(|e| NoteraError::Reqwest(e))?;
-
-        let json: Value = serde_json::from_str(&response_text).map_err(|e| NoteraError::SerdeJson(e))?;
-
-        if let Some(completion) = json.get("content") {
-            Ok(Summary {
-                source: source.to_string(),
-                content: completion.to_string().trim_matches('"').to_string(),
-            })
-        } else {
-            Err(NoteraError::AI("Unable to find completion".to_string()))
-        }
+impl Completion {
 
 
-    }
     async fn prompt_ai(source: &str, system_prompt: &str, user_prompt: &str) -> Result<Self> {
         let client = Client::new();
 
@@ -84,7 +38,7 @@ impl Summary {
         );
 
         let body = json!({
-            "model": MODEL,
+            "model": CHAT_MODEL,
             "messages": [
                 {
                     "role": "system",
@@ -124,7 +78,7 @@ impl Summary {
             .and_then(|message| message.get("content"))
             .and_then(|content| content.as_str())
         {
-            Ok(Summary {
+            Ok(Completion {
                 source: source.to_string(),
                 content: completion.to_string(),
             })
@@ -133,7 +87,128 @@ impl Summary {
         }
     }
 
-    pub async fn from_file(file_path: &str, prompt: Option<&str>, local: &bool) -> Result<Self> {
+    pub async fn from_image(source: &str, image_path: &str, prompt: Option<&str>) -> Result<Self> {
+        let file_path = Path::new(image_path);
+
+        let user_prompt: String = match prompt {
+            Some(prompt) => format!(
+                "Here is an image. Please use the prompt to help you respond accurately: \"{}\"",
+                prompt
+            ),
+            None => "Please summarize the attached image.".to_string(),
+        };
+
+
+        if !file_path.exists() {
+            return Err(NoteraError::Other(format!("File {} does not exist", image_path)));
+        }
+
+        let openai_api_key = env::var(ENV_VAR).unwrap_or_else(|_| {
+            println!("Please set the {} environment variable", ENV_VAR);
+            "No api key found".to_string()
+        });
+
+        let client = Client::new();
+
+        let mut sp = Spinner::new(
+            SPINNER_TYPE,
+            "Working with ai...".into(),
+        );
+
+        let image_data = fs::read(image_path)
+            .map_err(|err| NoteraError::FileSystem(err, None))?;
+
+        let base64_image = engine::general_purpose::STANDARD.encode(&image_data);
+
+
+        let mime_type = match file_path.extension().and_then(|ext| ext.to_str()) {
+            Some("jpg") | Some("jpeg") => "image/jpeg",
+            Some("png") => "image/png",
+            Some("webp") => "image/webp",
+            Some("gif") => "image/gif",
+            Some("bmp") => "image/bmp",
+            Some("tiff") => "image/tiff",
+            Some("svg") => "image/svg+xml",
+            Some("ico") => "image/x-icon",
+            Some("psd") => "image/vnd.adobe.photoshop",
+            Some("eps") => "image/vnd.adobe.postscript",
+            Some("ai") => "image/vnd.adobe.illustrator",
+            Some("raw") => "image/x-raw",
+            Some("heic") => "image/heic",
+            Some("heif") => "image/heif",
+            Some("indd") => "image/vnd.dece.graphic",
+            Some("indt") => "image/vnd.dece.tilemap",
+            Some("indp") => "image/vnd.dece.picture",
+            _ => "image/jpeg",  // default to JPEG if unknown
+        };
+
+
+        let body = json!({
+            "model": CHAT_MODEL,
+            "messages": [
+                {
+                    "role": "system",
+                    "content": "You are an ai bot that summarizes an image. and is sometime given a prompt."
+                },
+                {
+                    "role": "user",
+                    "content": [
+                    {
+                        "type": "text",
+                        "text": user_prompt
+                    },
+                    {
+                        "type": "image_url",
+                        "image_url": {
+                            "url": format!("data:{};base64,{}", mime_type, base64_image)
+                        }
+                    }
+                ]
+                }
+            ]
+        });
+
+        let response = client
+            .post(GPT_URL)
+            .header("Authorization", format!("Bearer {}", openai_api_key))
+            .json(&body)
+            .send().await
+            .map_err(|err| NoteraError::Reqwest(err))?;
+
+
+        let response_text = response
+            .text().await
+            .map_err(|err| NoteraError::Reqwest(err))?;
+
+        sp.stop();
+
+        println!("\n");
+
+        let json: Value = serde_json::from_str(&response_text).map_err(|err| NoteraError::SerdeJson(err))?;
+
+
+        if let Some(completion) = json
+            .get("choices")
+            .and_then(|choices| choices.get(0))
+            .and_then(|choice| choice.get("message"))
+            .and_then(|message| message.get("content"))
+            .and_then(|content| content.as_str())
+        {
+            Ok(Completion {
+                source: source.to_string(),
+                content: completion.to_string(),
+            })
+        } else {
+            Err(NoteraError::AI("Unable to find choice message".to_string()))
+        }
+    }
+
+    pub fn print(&self) {
+        println!("Transcript source: {}\n", self.source);
+        println!("{}", self.content);
+    }
+
+    pub async fn from_file(file_path: &str, prompt: Option<&str>) -> Result<Self> {
         let file_contents =
             fs::read_to_string(file_path).map_err(|err| NoteraError::FileSystem(err, None))?;
 
@@ -147,25 +222,20 @@ impl Summary {
             None => file_contents,
         };
 
-        let ai_response = if *local {
-            Self::prompt_ai_local(
-                "file",
-                system_prompt,
-                &user_prompt
-            ).await
-        } else {
-            Self::prompt_ai(
-                "file",
-                system_prompt,
-                &user_prompt,
-            ).await
-        }?;
+        let ai_response = Self::prompt_ai(
+            "file",
+            system_prompt,
+            &user_prompt,
+        ).await?;
 
         Ok(ai_response)
     }
 
-    pub async fn from_note(title: &str, prompt: Option<&str>, local: &bool) -> Result<Self> {
-        let note_content = storage::read_note(title)?.join("\n\n");
+    pub async fn from_note(title: &str, prompt: Option<&str>) -> Result<Self> {
+        let note_content = match storage::read_note(title) {
+            Ok(note) => format!("{}", note),
+            Err(e) => return Err(e),
+        };
 
         let user_prompt: String = match prompt {
             Some(prompt) => format!("Here is the note: {}.\n\n and here is the prompt given by the user: {}", note_content, prompt),
@@ -177,86 +247,42 @@ impl Summary {
              Sometimes, the user will give you a prompt too in addition to the notes contents. \
              The prompt and the notes contents are clearly specified as being two different things.";
 
-        let ai_response = if *local {
-            Self::prompt_ai_local(
-                "note",
-                system_prompt,
-                &user_prompt
-            ).await
-        } else {
-            Self::prompt_ai(
-                "note",
-                system_prompt,
-                &user_prompt,
-            ).await
-        }?;
+        let ai_response = Self::prompt_ai(
+            "note",
+            system_prompt,
+            &user_prompt,
+        ).await?;
 
         Ok(ai_response)
     }
 
-    pub async fn from_prompt(prompt: &str, local: &bool) -> Result<Self> {
+    pub async fn from_prompt(prompt: &str) -> Result<Self> {
 
         let system_prompt: &str = "You are an ai bot that a given prompt (or maybe a piece of text) by a user. \
             Try to figure out whether or not the user is giving you a piece of text to summarize, or just a normal chatgpt prompt. \
             If it is a normal chatgpt prompt, you shouldn't say anything that can be responded too, like 'how can i help you today'. \
             Because each prompt is independent.";
 
-        let ai_response = if *local {
-            Self::prompt_ai_local(
-                "prompt",
-                system_prompt,
-                prompt
-            ).await
-        } else {
-            Self::prompt_ai(
-                "prompt",
-                system_prompt,
-                prompt
-            ).await
-        }?;
-
-        Ok(ai_response)
-    }
-
-    // TODO: remove after project
-    pub async fn from_interview(interview_audio: &str) -> Result<Self> {
-        let transcript = Transcript::from_audio(interview_audio).await?;
-
         let ai_response = Self::prompt_ai(
-            "interview",
-            "You are an ai bot that is given an interview transcript, and you will see a very structured way of doing things, and all i need you to do is take the transcript,\
-             and then put them in a the (somewhat) clearly defined separations. It is for a theology project, called the authentic happiness project. Here are the question that are asked: \
-             What does the pursuit of happiness mean to you?,\
-              What role does you faith in god play in your pursuit of happiness?, \
-              What role does morality play in your pursuit of happiness?\
-              Just take the interview transcript and put them in the correct sections.",
-            &transcript.content
+            "prompt",
+            system_prompt,
+            prompt,
         ).await?;
 
-
         Ok(ai_response)
     }
 
+    // TODO: remove after projec
+    pub async fn from_audio(audio_file: &str, prompt: Option<&str>) -> Result<Self> {
 
-    pub async fn from_audio(audio_file: &str, prompt: Option<&str>, local: &bool) -> Result<Self> {
+        let transcript = Transcript::transcribe(audio_file).await?;
 
-        let transcript = if *local {
-            Transcript::from_audio_local(audio_file).await
-        } else {
-            Transcript::from_audio(audio_file).await
-        }?;
-
-        let summary = Summary::from_transcript(&transcript, prompt, local).await?;
+        let summary = Completion::from_transcript(&transcript, prompt).await?;
 
         Ok(summary)
     }
 
-    pub fn print(&self) {
-        println!("Summary source: {}\n", self.source);
-        println!("{}", self.content);
-    }
-
-    async fn from_transcript(transcript: &Transcript, prompt: Option<&str>, local: &bool) -> Result<Self> {
+    async fn from_transcript(transcript: &Transcript, prompt: Option<&str>) -> Result<Self> {
 
         let user_prompt: String = match prompt {
             Some(prompt) => format!("\n\n Here is the prompt given by the user: {}, Here is the transcript: {}.", prompt, transcript.content),
@@ -269,19 +295,11 @@ impl Summary {
             Only do this if you are 100% sure that the transcript is a lecture or presentation. \
             Sometimes, the user will give you a prompt too in addition to the transcript.";
 
-        let ai_response = if *local {
-            Self::prompt_ai_local(
-                "transcript",
-                system_prompt,
-                &user_prompt
-            ).await
-        } else {
-            Self::prompt_ai(
-                "transcript",
-                system_prompt,
-                &user_prompt
-            ).await
-        }?;
+        let ai_response = Self::prompt_ai(
+            "transcript",
+            system_prompt,
+            &user_prompt,
+        ).await?;
 
         Ok(ai_response)
     }
@@ -293,67 +311,8 @@ pub struct Transcript {
     pub content: String,
 }
 
-#[derive(Deserialize)]
-struct WhisperResponse {
-    text: String,
-}
-
 impl Transcript {
-
-    pub async fn from_audio_local(audio_file: &str) -> Result<Self> {
-
-        if !is_local_server_running().await {
-            println!("\nNo local server running, to use `--local`, you must run your own python server!\n\
-            You can find an example python server here: https://github.com/hijknight/notera/tree/ai-beta\n");
-
-            return Err(NoteraError::Other("No local server running".to_string()));
-        }
-
-        let client = Client::new();
-
-        let mut sp = Spinner::new(
-            SPINNER_TYPE,
-            "Transcribing... (time dependent on length)".into(),
-        );
-
-        let mut file = File::open(audio_file)?;
-        let mut audio_data = Vec::new();
-        file.read_to_end(&mut audio_data)
-            .map_err(|err| NoteraError::FileSystem(err, None))?;
-
-        let file_part = reqwest::multipart::Part::bytes(audio_data)
-            .file_name("audio.m4a")
-            .mime_str("audio/mpeg")
-            .map_err(|err| NoteraError::Other(err.to_string()))?;
-
-        let form = reqwest::multipart::Form::new()
-            .part("file", file_part);
-
-        let response = client
-            .post(HOME_SERVER_URL_AUDIO)
-            .multipart(form)
-            .send()
-            .await
-            .map_err(|err| NoteraError::Reqwest(err))?;
-
-
-        sp.stop();
-
-        println!("\n");
-
-        let ai_response = response.json::<WhisperResponse>().await
-            .map_err(|err| NoteraError::Reqwest(err))?;
-
-        Ok(Transcript {
-            source: "audio".to_string(),
-            content: ai_response.text,
-        })
-
-
-    }
-
-
-    pub async fn from_audio(audio_file: &str) -> Result<Self> {
+    pub async fn transcribe(audio_file: &str) -> Result<Self> {
 
         let metadata = fs::metadata(audio_file)
             .map_err(|err| NoteraError::FileSystem(err, None))?;
@@ -362,7 +321,7 @@ impl Transcript {
 
         if metadata.len() > MAX_SIZE_BYTES {
             return Err(NoteraError::AI(
-                "Audio file exceeds 25MB limit. \
+                "Transcript file exceeds 25MB limit. \
                 Please use a smaller file or run your local server".to_string()
             ));
         }
@@ -430,21 +389,5 @@ impl Transcript {
     }
 }
 
-async fn is_local_server_running() -> bool {
-    let client = Client::new();
 
 
-    let response = client
-        .get(HOME_SERVER_URL_AUDIO)
-        .send()
-        .await;
-
-    match response {
-        Ok(_) => {
-            true
-        }
-        Err(_) => {
-            false
-        }
-    }
-}
