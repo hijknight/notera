@@ -129,7 +129,7 @@ enum Commands {
         #[arg(short, long, help = "tell notera whether to print the transcript to the terminal or not")]
         print: bool,
 
-        #[arg(short, long, help = "DEV AND GITHUB ONLY: specify if you want to transcribe the given audio file locally")]
+        #[arg(short='L', long, help = "DEV AND GITHUB ONLY: specify if you want to transcribe the given audio file locally")]
         local: bool,
 
     },
