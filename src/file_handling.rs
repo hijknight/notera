@@ -7,7 +7,7 @@ use crate::{
     storage::init_db,
     error::{ print_warning, NoteraError, Result },
     config::Config,
-    ai::{ Transcript, Summary }
+    ai::{Transcript, Completion}
 };
 use chrono::Local;
 use rusqlite::{ params, Connection };
@@ -52,7 +52,7 @@ pub fn export_transcript(transcript: &Transcript) -> Result<()> {
     }
 }
 
-pub fn export_summary(summary: &Summary) -> Result<()> {
+pub fn export_completion(summary: &Completion) -> Result<()> {
     let config = Config::load()?;
     let summary_export_path = &format!("{}/{}", &config.notera_files_path, "summaries");
     let format = config.export_format.as_str();
@@ -76,7 +76,7 @@ pub fn export_summary(summary: &Summary) -> Result<()> {
 
     match format {
         "txt" => {
-            writeln!(file, "Title: Summary\n\nCreated: {}\n-----\n\n{}\n-----------", export_timestamp, summary.content)
+            writeln!(file, "Title: Completion\n\nCreated: {}\n-----\n\n{}\n-----------", export_timestamp, summary.content)
                 .map_err(|e| NoteraError::Export(format!("Failed to write to file: {}", e)))?;
             Ok(())
         },
