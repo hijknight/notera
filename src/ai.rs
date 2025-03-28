@@ -23,11 +23,6 @@ pub struct Summary {
     pub content: String,
 }
 
-#[derive(Deserialize)]
-struct AiResponse {
-    content: String,
-}
-
 impl Summary {
 
     async fn prompt_ai_local(source: &str, system_prompt: &str, user_prompt: &str) -> Result<Self> {
@@ -60,13 +55,20 @@ impl Summary {
 
         println!("\n");
 
-        let ai_response = response.json::<AiResponse>().await
-            .map_err(|e| NoteraError::Reqwest(e))?;
+        let response_text = response.text().await.map_err(|e| NoteraError::Reqwest(e))?;
 
-        Ok(Summary {
-            source: source.to_string(),
-            content: ai_response.content,
-        })
+        let json: Value = serde_json::from_str(&response_text).map_err(|e| NoteraError::SerdeJson(e))?;
+
+        if let Some(completion) = json.get("content") {
+            Ok(Summary {
+                source: source.to_string(),
+                content: completion.to_string().trim_matches('"').to_string(),
+            })
+        } else {
+            Err(NoteraError::AI("Unable to find completion".to_string()))
+        }
+
+
     }
     async fn prompt_ai(source: &str, system_prompt: &str, user_prompt: &str) -> Result<Self> {
         let client = Client::new();
