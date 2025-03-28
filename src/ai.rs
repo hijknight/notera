@@ -376,7 +376,7 @@ impl Transcript {
             #[allow(dead_code)]
             Ok(Transcript {
                 source: "audio".to_string(),
-                content: transcript.to_string(),
+                content: transcript.to_string().trim_matches('"').to_string(),
             })
         } else {
             Err(NoteraError::AI("If file is larger than 25mb, you need to run your own server locally".to_string()))
