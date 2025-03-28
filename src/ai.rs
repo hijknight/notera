@@ -272,7 +272,6 @@ impl Completion {
         Ok(ai_response)
     }
 
-    // TODO: remove after projec
     pub async fn from_audio(audio_file: &str, prompt: Option<&str>) -> Result<Self> {
 
         let transcript = Transcript::transcribe(audio_file).await?;
@@ -376,7 +375,7 @@ impl Transcript {
             #[allow(dead_code)]
             Ok(Transcript {
                 source: "audio".to_string(),
-                content: transcript.to_string(),
+                content: transcript.to_string().trim_matches('"').to_string(),
             })
         } else {
             Err(NoteraError::AI("If file is larger than 25mb, you need to run your own server locally".to_string()))
