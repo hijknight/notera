@@ -283,3 +283,82 @@ pub fn rename_note(old_title_query: &str, new_title: &str) -> Result<()> {
         _ => Err(NoteraError::Other(format!("Multiple notes found with title '{}'", old_title_query))),
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use rusqlite::Connection;
+    use tempfile::tempdir;
+
+    fn setup_test_db() -> (Connection, tempfile::TempDir) {
+        let temp_dir = tempdir().unwrap();
+        let db_path = temp_dir.path().join("test.db");
+
+        let conn = Connection::open(&db_path).unwrap();
+
+        conn.execute(
+            "CREATE TABLE IF NOT EXISTS notes (
+                id INTEGER PRIMARY KEY,
+                title TEXT NOT NULL UNIQUE,
+                content TEXT NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )",
+            [],
+        ).unwrap();
+
+        (conn, temp_dir)
+
+    }
+
+    #[test]
+    fn test_save_and_read_note() {
+        let (conn, _temp_dir) = setup_test_db();
+
+        let title = "Test Note";
+        let content = "This is a test note";
+
+        let expected = ("Test Note".to_string(), "This is a test note".to_string());
+
+        conn.execute(
+            "INSERT INTO notes (title, content) VALUES (?1, ?2)",
+            params![title, content],
+        ).unwrap();
+
+        let mut stmt = conn.prepare("SELECT title, content FROM notes WHERE title = ?1").unwrap();
+
+        let note_result = stmt.query_row([title], |row| {
+            let title: String = row.get(0).unwrap();
+            let content: String = row.get(1).unwrap();
+            Ok((title, content))
+        }).unwrap();
+
+        assert_eq!(note_result, expected);
+
+    }
+
+
+    #[test]
+    fn test_delete_note() {
+        let (conn, _temp_dir) = setup_test_db();
+
+        // Setup - create a note
+        let title = "Note to Delete";
+        conn.execute(
+            "INSERT INTO notes (title, content) VALUES (?1, ?2)",
+            [title, "Content to delete"],
+        ).unwrap();
+
+        // Delete the note
+        conn.execute("DELETE FROM notes WHERE title = ?1", [title]).unwrap();
+
+        // Verify deletion
+        let mut stmt = conn.prepare("SELECT COUNT(*) FROM notes WHERE title = ?1").unwrap();
+        let count: i64 = stmt.query_row([title], |row| row.get(0)).unwrap();
+
+        assert_eq!(0, count);
+    }
+
+
+}
+
