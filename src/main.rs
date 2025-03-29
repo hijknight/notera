@@ -175,26 +175,26 @@ async fn main() {
 
         Some(Commands::View { all, note }) => {
 
+            let conn = storage::init_db().unwrap();
 
             if *all {
-                match storage::read_notes_from_db() {
+                match storage::read_notes_from_db(&conn) {
                     Ok(notes) => {
                         let mut formatted_notes = Vec::new();
 
                         for note in notes {
                             formatted_notes.push(note.format());
                         };
+
                         println!("{}", formatted_notes.join("\n\n"));
-
-
                         Ok(())
                     }
                     Err(e) => Err(e),
                 }
-            } else if let Some(note) = note {
-                match storage::read_note(note) {
-                    Ok(note) => {
-                        println!("{}", note);
+            } else if let Some(note_input) = note {
+                match storage::read_note(note_input, &conn) {
+                    Ok(notes) => {
+                        println!("{}", notes.format());
                         Ok(())
                     }
                     Err(e) => Err(e),
@@ -205,7 +205,11 @@ async fn main() {
             }
         }
 
-        Some(Commands::Edit { title }) => storage::edit_note(title),
+        Some(Commands::Edit { title }) => {
+            let conn = storage::init_db().unwrap();
+
+            storage::edit_note(title, &conn)
+        },
 
         Some(Commands::Rename {
             old_title,

@@ -1,6 +1,5 @@
 use rusqlite::{params, Connection };
 use std::{ fs, path::PathBuf };
-use chrono::Local;
 use crate::{
     error::{
         print_warning,
@@ -50,9 +49,8 @@ pub fn save_note(note: &Note, conn: &Connection) -> Result<()> {
     Ok(())
 }
 
-pub fn read_notes_from_db() -> Result<Vec<Note>> {
+pub fn read_notes_from_db(conn: &Connection) -> Result<Vec<Note>> {
 
-    let conn = init_db()?;
 
     let mut stmt = conn.prepare("SELECT title, content, timestamp FROM notes ORDER BY timestamp DESC")
         .map_err(|e| NoteraError::Database(e))?;
@@ -80,8 +78,7 @@ pub fn read_notes_from_db() -> Result<Vec<Note>> {
     Ok(notes)
 }
 
-pub fn read_note(title: &str) -> Result<String> {
-    let conn = init_db()?;
+pub fn read_note(title: &str, conn: &Connection) -> Result<Note> {
 
     let mut stmt = conn.prepare("SELECT title, content, timestamp FROM notes WHERE title = ?1")
         .map_err(|e| NoteraError::Database(e))?;
@@ -95,71 +92,43 @@ pub fn read_note(title: &str) -> Result<String> {
     }).map_err(|e| NoteraError::Database(e));
 
     let note = match &note_result {
-        Ok(note) => note,
+        Ok(note) => Note {
+            title: note.0.trim().to_string(),
+            content: note.1.trim().to_string(),
+            timestamp: note.2.trim().to_string(),
+        },
         Err(_) => {
             return Err(NoteraError::Other(format!("Note not found: '{}'", title)));
         }
     };
 
-
-    let (title, content, timestamp) = note;
-
-    Ok(format!("📝 Title: {}\n⏳ Created: {}\n\n{}", title, timestamp, content))
+    Ok(note)
 }
 
-pub fn edit_note(title: &str) -> Result<()> {
-    let conn = init_db()?;
-    let config = Config::load()?;
-    let editor = &config.editor;
+pub fn edit_note(title: &str, conn: &Connection) -> Result<()> {
 
-    let mut stmt = conn.prepare("SELECT content FROM notes WHERE title = ?1")
+    let mut stmt = conn.prepare("SELECT title, content, timestamp FROM notes WHERE title = ?1")
         .map_err(|e| NoteraError::Database(e))?;
 
-    let content_result = stmt.query_row(params![title], |row| row.get(0));
+    let note_strings = stmt.query_row([title.trim()], |row| {
+        let title: String = row.get(0)?;
+        let content: String = row.get(1)?;
+        let timestamp: String = row.get(2)?;
 
-    let content: String = match content_result {
-        Ok(content) => content,
-        Err(_) => {
-            print_warning(&format!("Note not found: '{}'", title));
-            return Ok(());
-        }
+        Ok((title, content, timestamp))
+    }).map_err(|e| NoteraError::Database(e))?;
+
+    let note: Note = Note {
+        title: note_strings.0.trim().to_string(),
+        content: note_strings.1.trim().to_string(),
+        timestamp: note_strings.2.trim().to_string(),
     };
 
-    if content.is_empty() {
-        print_warning(&format!("Note not found: '{}'", title));
-        return Ok(());
-    }
-
-
-    let temp_file_path = format!("/tmp/notera_{}.md", title.replace(" ", "_"));
-
-    fs::write(&temp_file_path, &content)
-        .map_err(|e| with_path(e, PathBuf::from(&temp_file_path)))?;
-
-    let status = std::process::Command::new(editor)
-        .arg(&temp_file_path)
-        .status()
-        .map_err(|e| NoteraError::Other(format!("Failed to open editor: {}", e)))?;
-
-    if !status.success() {
-        return Err(NoteraError::Other("Editor exited with non-zero status".to_string()));
-    }
-
-    let updated_content = fs::read_to_string(&temp_file_path)
-        .map_err(|e| with_path(e, PathBuf::from(&temp_file_path)))?
-        .trim()
-        .to_string();
-
-    if updated_content.is_empty() {
-        println!("⚠️ No changes made.");
-        return Ok(());
-    }
-
-    let timestamp = Local::now().format("%Y-%m-%d %H:%M").to_string();
+    let updated_note = note.edit()?;
 
     conn.execute(
         "UPDATE notes SET content = ?1, timestamp = ?2 WHERE title = ?3",
-        params![updated_content, timestamp, title],
+        params![updated_note.content, updated_note.timestamp, updated_note.title],
     ).map_err(|e| NoteraError::Database(e))?;
 
     println!("✅ Note updated successfully!");

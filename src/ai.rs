@@ -232,8 +232,10 @@ impl Completion {
     }
 
     pub async fn from_note(title: &str, prompt: Option<&str>) -> Result<Self> {
-        let note_content = match storage::read_note(title) {
-            Ok(note) => format!("{}", note),
+        let conn = storage::init_db()?;
+
+        let note_content = match storage::read_note(title, &conn) {
+            Ok(note) => format!("{}", note.format()),
             Err(e) => return Err(e),
         };
 
