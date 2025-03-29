@@ -10,6 +10,7 @@ mod file_handling;
 mod setup;
 /// has all database functions (save, edit, delete)
 mod storage;
+mod notes;
 
 use clap::{CommandFactory, Parser, Subcommand};
 use std::process;
@@ -166,13 +167,24 @@ async fn main() {
     }
 
     let result = match &cli.command {
-        Some(Commands::New { title }) => storage::save_note(title),
+        Some(Commands::New { title }) => {
+            let conn = storage::init_db().unwrap();
+            let note = notes::Note::from_editor(title).unwrap();
+            storage::save_note(&note, &conn)
+        },
 
         Some(Commands::View { all, note }) => {
+
+
             if *all {
-                match storage::read_notes() {
+                match storage::read_notes_from_db() {
                     Ok(notes) => {
-                        println!("{}", notes.join("\n\n"));
+                        let mut formatted_notes = Vec::new();
+
+                        for note in notes {
+                            formatted_notes.push(note.format());
+                        };
+                        println!("{}", formatted_notes.join("\n\n"));
                         Ok(())
                     }
                     Err(e) => Err(e),
