@@ -185,6 +185,8 @@ async fn main() {
                             formatted_notes.push(note.format());
                         };
                         println!("{}", formatted_notes.join("\n\n"));
+
+
                         Ok(())
                     }
                     Err(e) => Err(e),
