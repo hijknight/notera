@@ -106,7 +106,8 @@ enum Commands {
         print: bool,
         
     },
-    
+
+    #[command(about = "summarize a given image file")]
     Image {
         #[arg(short, long, value_name = "IMAGE_FILE", help = "summarize an image file (.jpg, .png), optionally add a prompt")]
         file: Option<String>,
