@@ -8,7 +8,8 @@ use crate::{
         NoteraError,
         Result,
     },
-    config::Config
+    config::Config,
+    notes::Note,
 };
 
 pub fn get_db_path() -> Result<PathBuf> {
@@ -37,44 +38,19 @@ pub fn init_db() -> Result<Connection> {
     Ok(conn)
 }
 
-pub fn save_note(title: &str) -> Result<()> {
-    let conn = init_db()?;
-    let config = Config::load()?;
-    let editor = &config.editor;
 
-    let temp_file_path = format!("/tmp/notera_{}.md", title.replace(" ", "_"));
-
-    // open temp file
-    let status = std::process::Command::new(editor)
-        .arg(&temp_file_path)
-        .status()
-        .map_err(|e| NoteraError::Other(format!("Failed to open editor: {}", e)))?;
-
-    if !status.success() {
-        return Err(NoteraError::Other("Editor exited with non-zero status".to_string()));
-    }
-    // read note content
-    let content = fs::read_to_string(&temp_file_path).map_err(|e| with_path(e, PathBuf::from(&temp_file_path)))?
-        .trim()
-        .to_string();
-
-    if content.is_empty() {
-        println!("⚠️ Note discarded (empty content).");
-        return Ok(());
-    }
-
-    let timestamp = Local::now().format("%Y-%m-%d %H:%M").to_string();
+pub fn save_note(note: &Note, conn: &Connection) -> Result<()> {
 
     conn.execute(
         "INSERT INTO notes (title, content, timestamp) VALUES (?1, ?2, ?3)",
-        params![title.trim(), content, timestamp],
+        params![note.title.trim(), note.content, note.timestamp],
     ).map_err(|e| NoteraError::Database(e))?;
 
     println!("✅ Note saved successfully!");
     Ok(())
 }
 
-pub fn read_notes() -> Result<Vec<String>> {
+pub fn read_notes_from_db() -> Result<Vec<Note>> {
 
     let conn = init_db()?;
 
@@ -93,7 +69,12 @@ pub fn read_notes() -> Result<Vec<String>> {
 
     for note_result in notes_iter {
         let (title, content, timestamp) = note_result.map_err(|e| NoteraError::Database(e))?;
-        notes.push(format!("📝 Title: {}\n⏳ Created: {}\n\n{}\n", title, timestamp, content));
+
+        notes.push(Note {
+            title,
+            content,
+            timestamp,
+        });
     }
 
     Ok(notes)
