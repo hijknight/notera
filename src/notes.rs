@@ -14,7 +14,6 @@ use std::path::PathBuf;
 use tempfile::tempdir;
 
 #[derive(Debug, Clone, PartialEq)]
-
 pub struct Note {
     pub title: String,
     pub content: String,
