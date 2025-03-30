@@ -16,6 +16,7 @@ pub enum NoteraError {
     AI(String),
     Reqwest(reqwest::Error),
     SerdeJson(serde_json::Error),
+    TempFile(String),
     Other(String),
 }
 
@@ -33,6 +34,7 @@ impl fmt::Display for NoteraError {
             NoteraError::Reqwest(err) => write!(f, "Reqwest error: {}", err),
             NoteraError::SerdeJson(err) => write!(f, "Serde json error: {}", err),
             NoteraError::Other(msg) => write!(f, "Error: {}", msg),
+            NoteraError::TempFile(msg) => write!(f, "Temporary file error: {}", msg),
         }
     }
 }
@@ -81,6 +83,7 @@ pub fn handle_error(err: &NoteraError) -> ! {
         NoteraError::Reqwest(_) => handle_reqwest_error(err),
         NoteraError::SerdeJson(_) => handle_json_error(err),
         NoteraError::Other(_) => handle_other_error(err),
+        NoteraError::TempFile(_) => handle_tempfile_err(err),
     }
 }
 
@@ -94,6 +97,7 @@ const EXIT_USER_INPUT: i32 = 7;
 const EXIT_AI_ERROR: i32 = 8;
 const EXIT_REQWEST_ERROR: i32 = 9;
 const EXIT_JSON_ERROR: i32 = 10;
+const EXIT_TEMP_FILE: i32 = 11;
 
 pub fn handle_db_error(err: &NoteraError) -> ! {
     eprintln!("❌ {}", err);
@@ -150,6 +154,11 @@ pub fn handle_json_error(err: &NoteraError) -> ! {
 pub fn handle_other_error(err: &NoteraError) -> ! {
     eprintln!("❌ {}", err);
     exit(EXIT_GENERAL);
+}
+
+pub fn handle_tempfile_err(err: &NoteraError) -> ! {
+    eprintln!("{}", err);
+    exit(EXIT_TEMP_FILE);
 }
 
 pub fn with_path(err: io::Error, path: PathBuf) -> NoteraError {
