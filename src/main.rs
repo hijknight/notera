@@ -214,14 +214,18 @@ async fn main() {
         Some(Commands::Rename {
             old_title,
             new_title,
-        }) => storage::rename_note(old_title, new_title),
+        }) => {
+            let conn = storage::init_db().unwrap();
+            storage::rename_note(old_title, new_title, &conn)
+        },
 
         Some(Commands::Delete { note, all }) => {
+            let conn = storage::init_db().unwrap();
             if *all {
-                storage::clear_notes()
+                storage::clear_notes(&conn)
             } else if let Some(args) = note {
                 let note_title = args;
-                storage::delete_note(note_title)
+                storage::delete_note(note_title, &conn)
             } else {
                 println!("No valid delete option provided. Use `--all` or `--note`.");
                 Ok(())
@@ -484,9 +488,13 @@ async fn main() {
                         }
                     }
                 }
+                Ok(())
+            } else {
+                println!("No valid import option provided. Use `--file`.");
+                Ok(())
             }
             
-            Ok(())
+
         }
 
         Some(Commands::Config) => setup::open_config(),
