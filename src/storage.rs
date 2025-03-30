@@ -211,11 +211,11 @@ mod tests {
     use rusqlite::Connection;
     use tempfile::tempdir;
 
-    fn setup_test_db() -> (Connection, tempfile::TempDir) {
-        let temp_dir = tempdir().unwrap();
+    fn setup_test_db() -> Result<Connection> {
+        let temp_dir = tempdir().map_err(|err| NoteraError::TempFile(format!("Failed to create tempdir {}", err)))?;
         let db_path = temp_dir.path().join("test.db");
 
-        let conn = Connection::open(&db_path).unwrap();
+        let conn = Connection::open(&db_path).map_err(|e| NoteraError::Database(e))?;
 
         conn.execute(
             "CREATE TABLE IF NOT EXISTS notes (
@@ -226,42 +226,34 @@ mod tests {
                 updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )",
             [],
-        ).unwrap();
+        ).map_err(|e| NoteraError::Database(e))?;
 
-        (conn, temp_dir)
+        Ok(conn)
 
     }
 
     #[test]
     fn test_save_and_read_note() {
-        let (conn, _temp_dir) = setup_test_db();
+        let conn= setup_test_db().expect("Failed to create test database");
 
-        let title = "Test Note";
-        let content = "This is a test note";
+        let expected_note = Note {
+            title: "Test Note".to_string(),
+            content: "This is a test note".to_string(),
+            timestamp: "2022-01-01 00:00:00".to_string(),
+        };
 
-        let expected = ("Test Note".to_string(), "This is a test note".to_string());
+        save_note(&expected_note, &conn).expect("Failed to save note");
 
-        conn.execute(
-            "INSERT INTO notes (title, content) VALUES (?1, ?2)",
-            params![title, content],
-        ).unwrap();
+        let actual_note = read_note("Test Note", &conn).expect("Failed to read note");
 
-        let mut stmt = conn.prepare("SELECT title, content FROM notes WHERE title = ?1").unwrap();
-
-        let note_result = stmt.query_row([title], |row| {
-            let title: String = row.get(0).unwrap();
-            let content: String = row.get(1).unwrap();
-            Ok((title, content))
-        }).unwrap();
-
-        assert_eq!(note_result, expected);
-
+        assert_eq!(expected_note.title, actual_note.title);
+        assert_eq!(expected_note.content, actual_note.content);
     }
 
 
     #[test]
     fn test_delete_note() {
-        let (conn, _temp_dir) = setup_test_db();
+        let conn = setup_test_db().unwrap();
 
         // Setup - create a note
         let title = "Note to Delete";
