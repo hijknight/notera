@@ -17,6 +17,7 @@ pub enum NoteraError {
     Reqwest(reqwest::Error),
     SerdeJson(serde_json::Error),
     TempFile(String),
+    Process(String),
     Other(String),
 }
 
@@ -35,6 +36,7 @@ impl fmt::Display for NoteraError {
             NoteraError::SerdeJson(err) => write!(f, "Serde json error: {}", err),
             NoteraError::Other(msg) => write!(f, "Error: {}", msg),
             NoteraError::TempFile(msg) => write!(f, "Temporary file error: {}", msg),
+            NoteraError::Process(msg) => write!(f, "Process error: {}", msg),
         }
     }
 }
@@ -84,6 +86,7 @@ pub fn handle_error(err: &NoteraError) -> ! {
         NoteraError::SerdeJson(_) => handle_json_error(err),
         NoteraError::Other(_) => handle_other_error(err),
         NoteraError::TempFile(_) => handle_tempfile_err(err),
+        NoteraError::Process(_) => handle_process_error(err),
     }
 }
 
@@ -97,7 +100,8 @@ const EXIT_USER_INPUT: i32 = 7;
 const EXIT_AI_ERROR: i32 = 8;
 const EXIT_REQWEST_ERROR: i32 = 9;
 const EXIT_JSON_ERROR: i32 = 10;
-const EXIT_TEMP_FILE: i32 = 11;
+const EXIT_TEMP_FILE_ERROR: i32 = 11;
+const EXIT_PROCESS_ERROR: i32 = 12;
 
 pub fn handle_db_error(err: &NoteraError) -> ! {
     eprintln!("❌ {}", err);
@@ -122,6 +126,12 @@ pub fn handle_export_error(err: &NoteraError) -> ! {
     eprintln!("❌ {}", err);
     eprintln!("ℹ️ Please check your export path and file permissions.");
     exit(EXIT_EXPORT_ERROR);
+}
+
+pub fn handle_process_error(err: &NoteraError) -> ! {
+    eprintln!("{}", err);
+
+    exit(EXIT_PROCESS_ERROR);
 }
 
 pub fn handle_import_error(err: &NoteraError) -> ! {
@@ -158,7 +168,7 @@ pub fn handle_other_error(err: &NoteraError) -> ! {
 
 pub fn handle_tempfile_err(err: &NoteraError) -> ! {
     eprintln!("{}", err);
-    exit(EXIT_TEMP_FILE);
+    exit(EXIT_TEMP_FILE_ERROR);
 }
 
 pub fn with_path(err: io::Error, path: PathBuf) -> NoteraError {
