@@ -42,7 +42,7 @@ pub fn open_config() -> Result<()> {
     let editor = env::var("EDITOR").unwrap_or_else(|_| "vim".to_string());
 
     let status = Command::new(editor).arg(&config_path).status()
-        .map_err(|e| NoteraError::Other(format!("Failed to open config file with editor: {}", e)))?;
+        .map_err(|e| NoteraError::Process(format!("Failed to open config file with editor: {}", e)))?;
 
     if !status.success() {
         return Err(NoteraError::Other("Config file opened with editor, but no changes were made.".to_string()));
