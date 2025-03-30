@@ -50,12 +50,11 @@ pub fn open_config() -> Result<()> {
     Ok(())
 }
 
-/// Cleans up notera's data, including the SQLite database, temp files, and optionally the /notera folder.
+/// Cleans up notera's data, including the SQLite database, and optionally the /notera folder.
 pub fn clean() -> Result<()> {
     let db_path = crate::storage::get_db_path()?;
     let config_path = crate::config::get_config_path();
     let notera_files = crate::config::Config::load()?.notera_files_path;
-    let temp_dir = "/tmp/"; // Temporary directory path
 
     println!("⚠️ WARNING: This will delete the notera database, temporary files, config file, and optionally the notera files folder.\n\nType 'yes' to confirm:");
     let mut confirmation = String::new();
@@ -79,22 +78,6 @@ pub fn clean() -> Result<()> {
         println!("ℹ️ Database file not found. Nothing to clean there.");
     }
 
-    // Remove all temporary files
-    if let Ok(entries) = fs::read_dir(temp_dir) {
-        for entry in entries.flatten() {
-            let path = entry.path();
-            if let Some(filename) = path.file_name() {
-                if filename.to_string_lossy().starts_with("notera_") {
-                    match fs::remove_file(&path) {
-                        Ok(_) => println!("✅ Temporary file deleted: {}", path.display()),
-                        Err(e) => print_warning(&format!("Failed to delete temporary file: {}", e))
-                    }
-                }
-            }
-        }
-    } else {
-        println!("ℹ️ Temporary directory not found or not accessible.");
-    }
 
     if config_path.exists() {
         match fs::remove_file(&config_path) {
@@ -117,11 +100,10 @@ pub fn clean() -> Result<()> {
 
     if export_deletion_confirmation.trim().to_lowercase() != "yes" {
         println!();
-        println!("✅ All files in '{}' prefixed with 'notera_' deleted.", temp_dir);
         println!("✅ Notera database deleted");
         println!("❎ Export folder not deleted per request.");
         println!();
-        println!("✅ ✅ ❎ Clean operation completed.");
+        println!("✅ ❎ Clean operation completed.");
         return Ok(());
     }
     // if user says yes, delete all files
@@ -137,7 +119,6 @@ pub fn clean() -> Result<()> {
     }
 
     println!();
-    println!("✅ All files in '{}' prefixed with 'notera_' deleted.", temp_dir);
     println!("✅ Notera database deleted");
     if !export_folder_exists {
         println!("ℹ️ Attempted to delete export folder, but it did not exist.");
@@ -146,6 +127,6 @@ pub fn clean() -> Result<()> {
     }
 
     println!();
-    println!("✅ ✅ ✅ Clean operation completed.");
+    println!("✅ ✅ Clean operation completed.");
     Ok(())
 }
