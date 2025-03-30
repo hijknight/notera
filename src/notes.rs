@@ -27,13 +27,13 @@ impl Note {
         let config = Config::load()?;
         let editor = &config.editor;
 
-        let temp_dir = tempdir()?;
+        let temp_dir = tempdir().map_err(|e| NoteraError::TempFile(format!("Failed to create temp dir: {}", e)))?;
         let temp_file_path = temp_dir.path().join("notera_tmp_note.md");
 
         let status = std::process::Command::new(editor)
             .arg(&temp_file_path)
             .status()
-            .map_err(|e| NoteraError::Other(format!("Failed to open editor: {}", e)))?;
+            .map_err(|e| NoteraError::Process(format!("Failed to open editor: {}", e)))?;
 
         if !status.success() {
             return Err(NoteraError::Other("Editor exited with non-zero status".to_string()));
@@ -63,7 +63,7 @@ impl Note {
 
 
 
-        let temp_dir = tempdir()?;
+        let temp_dir = tempdir().map_err(|e| NoteraError::TempFile(format!("Failed to create temp dir: {}", e)))?;
         let temp_file_path = temp_dir.path().join(format!("notera_{}.md", self.title.replace(" ", "_")));
 
 
@@ -73,7 +73,7 @@ impl Note {
         let status = std::process::Command::new(editor)
             .arg(&temp_file_path)
             .status()
-            .map_err(|e| NoteraError::Other(format!("Failed to open editor: {}", e)))?;
+            .map_err(|e| NoteraError::Process(format!("Failed to open editor: {}", e)))?;
 
 
         if !status.success() {
