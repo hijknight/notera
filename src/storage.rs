@@ -135,8 +135,7 @@ pub fn edit_note(title: &str, conn: &Connection) -> Result<()> {
     Ok(())
 }
 
-pub fn delete_note(title: &str) -> Result<()> {
-    let conn = init_db()?;
+pub fn delete_note(title: &str, conn: &Connection) -> Result<()> {
     let title = title.trim();
     let result = conn.execute("DELETE FROM notes WHERE title = ?1", params![title])
         .map_err(|e| NoteraError::Database(e))?;
@@ -148,21 +147,11 @@ pub fn delete_note(title: &str) -> Result<()> {
 
     println!("✅ Note '{}' deleted from database.", title);
 
-    let temp_file_path = format!("/tmp/notera_{}.md", title.replace(" ", "_"));
-
-    if let Err(e) = fs::remove_file(&temp_file_path) {
-        print_warning(&format!("Failed to delete temporary file: {}", e));
-        println!("ℹ️ Normally, this happens because the file was imported, so no file was created in the /tmp directory.");
-    } else {
-        println!("✅ Temporary file deleted.");
-    }
-
     Ok(())
 }
 
 
-pub fn clear_notes() -> Result<()> {
-    let conn = init_db()?;
+pub fn clear_notes(conn: &Connection) -> Result<()> {
 
     println!("⚠️ WARNING: This will permanently delete all notes. Type 'yes' to confirm");
     let mut confirmation = String::new();
@@ -182,29 +171,11 @@ pub fn clear_notes() -> Result<()> {
 
     println!("✅ All notes deleted from database.");
 
-    // delete temp files
-    let temp_file_path = "/tmp/";
-
-    if let Ok(entries) = fs::read_dir(temp_file_path) {
-        for entry in entries.flatten() {
-            if let Some(file_name) = entry.file_name().to_str() {
-                if file_name.starts_with("notera_") {
-                    fs::remove_file(entry.path()).unwrap_or_else(|err| {
-                        println!("❌ Failed to delete tmp file: {}", err);
-                        println!("ℹ️ Normally, this happens because the file was imported, so no file was created in the /tmp directory.")
-                    });
-                }
-            }
-        }
-    }
-
-    println!("✅ Temporary note files cleared.");
     Ok(())
 }
 
 
-pub fn rename_note(old_title_query: &str, new_title: &str) -> Result<()> {
-    let conn = init_db()?;
+pub fn rename_note(old_title_query: &str, new_title: &str, conn: &Connection) -> Result<()> {
 
     let mut stmt = conn.prepare("SELECT title FROM notes WHERE title LIKE ?")
         .map_err(|e| NoteraError::Database(e))?;
